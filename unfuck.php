@@ -1,9 +1,6 @@
 <?php
     declare(encoding='utf-8');
 
-    // @requirements  requires at least PHP4
-    // if you use JSON in default types, PHP 5 is required.
-
     // @config  adjust to your own needs
     setlocale(LC_TIME, "en_US.UTF-8");
     date_default_timezone_set("America/New_York");

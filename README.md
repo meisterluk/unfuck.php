@@ -15,6 +15,11 @@ A set of PHP snippets to avoid bullshitty php code. Grab any code you like.
 * Provide missing stdlib functions and classes
 * Dealing with php's buggy type system
 
+Requirements
+------------
+
+* Requires PHP ≥ 4 on a webserver
+
 Installation
 ------------
 
