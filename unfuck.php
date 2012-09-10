@@ -377,7 +377,7 @@
         //
         public function map($callback)
         {
-            return array_map($callback, $this->elements);
+            $this->elements = array_map($callback, $this->elements);
         }
 
         //
