@@ -841,8 +841,7 @@
             $result = array();
             foreach ($this->msgs as $value)
             {
-                if (($gt && $value[1] >= $min)
-                 || (!$gt && $value[1] <= $min))
+                if (($gt && $value[1] >= $min) || (!$gt && $value[1] <= $min))
                     $result[] = $value;
             }
             return $result;
