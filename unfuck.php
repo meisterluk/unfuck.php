@@ -62,8 +62,8 @@
     // Capitalize words in the given string
     // (ucwords() but also look for hyphens).
     //
-    // @param string string     the words
-    // @return string           the capitalized input string
+    // @param string string  the words
+    // @return string  the capitalized input string
     //
     function capitalize($string)
     {
@@ -80,8 +80,8 @@
     //
     // CamelCase words in the given string
     //
-    // @param string string     the words
-    // @return string           the camelcased input string
+    // @param string string  the words
+    // @return string  the camelcased input string
     //
     function camelCase($string)
     {
@@ -96,9 +96,9 @@
     //
     // Check whether parameter starts with a given substring or not.
     //
-    // @param string string parameter to search in
-    // @param string substring needle to search for
-    // @return boolean string starts with substring
+    // @param string string  parameter to search in
+    // @param string substring  needle to search for
+    // @return boolean  string starts with substring
     //
     function startswith($string, $substring)
     {
@@ -108,9 +108,9 @@
     //
     // Check whether parameter ends with a given substring or not.
     //
-    // @param string string parameter to search in
-    // @param string substring needle to search for
-    // @return boolean string ends with substring
+    // @param string string  parameter to search in
+    // @param string substring  needle to search for
+    // @return boolean  string ends with substring
     //
     function endswith($string, $substring)
     {
@@ -122,7 +122,7 @@
     // Sorry, but code stands for itself.
     //
     // @param mixed val a value to parse
-    // @return boolean test value to be considered as "empty" or not
+    // @return boolean  test value to be considered as "empty" or not
     //
     function is_empty($val)
     {
@@ -152,14 +152,14 @@
     // A basic stack implementation.
     // Heavily inspired by python's list datatype.
     //
-    // list behavior
+    // *list behavior*
     //   A real stack is one where you can only access the top element.
     //   Therefore the interface only provides push() and pop().
     //   However in practice access to other elements is helpful in some
     //   cases. So just like python's list, this datatype methods to
     //   interact with elements "in the middle".
     //
-    // stackorder / listorder
+    // *stackorder / listorder*
     //   If you access elements in the middle of the list. Are those
     //   elements in their natural (order of pushing) or reversed order
     //   (order of popping)? You can configure this in the constructor
@@ -228,6 +228,7 @@
         // Splits an array into equal-sized parts.
         //
         // @param int size  the size of each chunck
+        // @return array  an array containing chunks of the stack
         //
         public function chunk($size)
         {
@@ -264,7 +265,7 @@
         // Note. The position of the element is not important.
         //
         // @param Stack stack  a Stack to compare with
-        // @return Stack a new Stack instance with elements of diff
+        // @return Stack  a new Stack instance with elements of diff
         //
         public function diff($stack)
         {
@@ -404,7 +405,7 @@
         // Throws an UnderflowException for popping from empty stack.
         //
         // @param count  how many elements shall be popped?
-        // @return a value (if $count===1) or an array of elements
+        // @return mixed  a value (if $count===1) or an array of elements
         //
         public function pop($count=1)
         {
@@ -433,6 +434,8 @@
         //       constructor.
         // Note. Variadic function.
         //
+        // @param mixed value  the value to push to the stack
+        //
         public function push($value)
         {
             if (func_num_args() > 1)
@@ -457,6 +460,8 @@
         //       value gets pushed last. So the order will be reversed.
         // Note. See also push()
         // Note. Variadic function.
+        //
+        // @param mixed value  the value to push to the stack
         //
         public function push_rev($value)
         {
@@ -619,6 +624,7 @@
         //
         // Take some slice and replace elements of slice with
         // $replacements. In-place method.
+        //
         // Note. The interval [$start, $end) must not cross the end of
         //       the array. Throw a RangeException in case.
         // Note. According to set builder notation the $start is
@@ -741,23 +747,21 @@
     //
     // Note. If you dislike it, look for trigger_error() or error_log()
     //
-    // Possible "classes":
-    //    0
-    //      Note.
-    //    2
-    //      Warning.
-    //    3
-    //      Error.
+    // Possible "classes" {
+    //    0: Note.
+    //    2: Warning.
+    //    3: Error.
+    //  }
     //
     // Interface:
     //
-    //     @method push($msg, $class=3)
-    //     @method pop()
-    //     @method count()
-    //     @method reset()
-    //     @method filter($min=3, $gt=true)
-    //     @method iterate()
-    //     @method dump($format=0, $indent=0)
+    // @method push($msg, $class=3)
+    // @method pop()
+    // @method count()
+    // @method reset()
+    // @method filter($min=3, $gt=true)
+    // @method iterate()
+    // @method dump($format=0, $indent=0)
     //
     class Notifications
     {
@@ -766,10 +770,10 @@
         //
         // Add message with associated class
         //
-        // @param string msg      the message to store
-        // @param integer class   optional, the class (integer)
-        // @return false          always returns false!
-        //                        So it can be used directly in return contexts
+        // @param string msg  the message to store
+        // @param int class  optional, the class (integer)
+        // @return false  always returns false!
+        //                So it can be used directly in return contexts
         //
         public function push($msg, $class=3)
         {
@@ -790,7 +794,7 @@
         //
         // Get number of messages on stack.
         //
-        // @return integer  the number of messages stored
+        // @return int  the number of messages stored
         //
         public function count()
         {
@@ -811,7 +815,7 @@
         //
         // @param array msg1  the first message
         // @param array msg2  the second message
-        // @return integer    an integer indicating difference of msg1 and msg2
+        // @return int  an integer indicating difference of msg1 and msg2
         //
         static protected function _cmp($msg1, $msg2)
         {
@@ -826,9 +830,9 @@
         //
         // A filtering method
         //
-        // @param integer min  a minimum value the class has to be
-        // @param integer gt   test for class >= min on true, <= on false
-        // @return array       an array with array(msg, class) values
+        // @param int min  a minimum value the class has to be
+        // @param int gt  test for class >= min on true, <= on false
+        // @return array  an array with array(msg, class) values
         //
         public function filter($min=3, $gt=true)
         {
@@ -881,6 +885,11 @@
 
         //
         // Dump in HTML or plain text.
+        //
+        // @param format int  the format {0: HTML, 1: plain text}
+        // @param indent int  the level of indentation
+        //                    (ie. number of spaces before each line)
+        // @return string  a string describing the state of the object
         //
         public function dump($format=0, $indent=0)
         {
@@ -1136,7 +1145,7 @@
         // Remove a context by id.
         //
         // @param mixed id  the id to identify the context
-        // @return object $this
+        // @return object  $this
         //
         public function removeContext($name)
         {
@@ -1147,11 +1156,12 @@
         //
         // Return each bit of the given bitfield separately.
         // Example::
-        //     >>> _splitBitfield(0x110)
+        //
+        //     php> _splitBitfield(0x110)
         //     array(0x100, 0x10)
         //
-        // @param integer bitfield the bitfield to read
-        // @return array array with integers
+        // @param int bitfield  the bitfield to read
+        // @return array  array with integers
         //
         static protected function _splitBitfield($bitfield)
         {
@@ -1173,14 +1183,14 @@
         // Add a rule.
         //
         // @param string name  the parameter name to read and parse
-        // @param string|integer types
-        //        the type(s) the parameter must have
-        //        can either be bitfield or comma-separated list of types
+        // @param string|int types  the type(s) the parameter must have
+        //                          can either be bitfield or comma-separated
+        //                          list of types
         // @param mixed default  default value to return if type does not
         //                       match and use_defaults=true.
-        // @param boolean overwrite shall I overwrite previously defined
-        //                          rules with same name?
-        // @return boolean boolean indicating success (true) or failure (false)
+        // @param boolean overwrite  shall I overwrite previously defined
+        //                           rules with same name?
+        // @return boolean  boolean indicating success or failure
         //
         public function addRule($name, $types=NULL,
                                 $default=NULL, $overwrite=true)
@@ -1199,10 +1209,10 @@
         // Add a new filter.
         //
         // @param name mixed  the parameter 
-        // @param string|integer filter  a filter specifier
-        // @param array|NULL parameters
-        //        parameters to be supplied whenever the filter is called
-        // @return object $this
+        // @param string|int filter  a filter specifier
+        // @param array|NULL parameters  parameters to be supplied whenever
+        //                               the filter is called
+        // @return object  $this
         //
         public function addFilter($filter, $parameters=NULL)
         {
@@ -1220,7 +1230,7 @@
         //
         // @param string types  types specifier
         // @param string delimiter  the delimiter used
-        // @return integer the corresponding flag constant
+        // @return int  the corresponding flag constant
         //
         protected function processTypesStringlist($flags, $delimiter=',')
         {
@@ -1239,9 +1249,9 @@
         // Process type parameter.
         // Note. Defines a one-directional type-name association.
         //
-        // @param int|string type a type identifier
-        // @return integer|mixed the corresponding type constant
-        //                       or return value of invalidType on error
+        // @param int|string type  a type identifier
+        // @return integer|mixed  the corresponding type constant
+        //                        or return value of invalidType on error
         //
         protected function processType($type)
         {
@@ -1286,8 +1296,8 @@
         // Will be called whenever an invalid type is given.
         // Eg. can be used as a hook to write to a logfile
         //
-        // @param string type the type identifier name
-        // @param boolean returns always false
+        // @param string type  the type identifier name
+        // @param boolean  returns always false
         //
         protected function invalidType($type)
         {
@@ -1298,9 +1308,9 @@
         //
         // Process filter parameter.
         //
-        // @param int|string filter a filter identifier
-        // @return integer|false the corresponding filter constant
-        //                       or false if filter is unknown
+        // @param int|string filter  a filter identifier
+        // @return integer|false  the corresponding filter constant
+        //                        or false if filter is unknown
         //
         protected function processFilter($filter)
         {
@@ -1327,8 +1337,8 @@
         // Will be called whenever an invalid filter is given.
         // Eg. can be used as a hook to write to a logfile
         //
-        // @param string filter the filter identifier name
-        // @param boolean returns always false
+        // @param string filter  the filter identifier name
+        // @param boolean  returns always false
         //
         protected function invalid_filter($filter)
         {
@@ -1339,8 +1349,8 @@
         //
         // Handle values of type NULL.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleNull($value)
         {
@@ -1353,8 +1363,8 @@
         //
         // Handle values of type integer.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleInteger($value)
         {
@@ -1376,8 +1386,8 @@
         //
         // Handle values of type hex.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleHex($value)
         {
@@ -1390,8 +1400,8 @@
         //
         // Handle values of type string.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleString($value)
         {
@@ -1401,8 +1411,8 @@
         //
         // Handle values of type float.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleFloat($value)
         {
@@ -1415,8 +1425,8 @@
         //
         // Handle values of type binary.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleBinary($value)
         {
@@ -1431,8 +1441,8 @@
         //
         // Handle values of type boolean.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleBool($value)
         {
@@ -1450,8 +1460,8 @@
         //
         // Handle values of type loose boolean.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleLBool($value)
         {
@@ -1469,8 +1479,8 @@
         //
         // Handle values of type char.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleChar($value)
         {
@@ -1485,8 +1495,8 @@
         //
         // Handle values of type alphanumeric.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleAlnum($value)
         {
@@ -1506,8 +1516,8 @@
         //
         // Handle values of type alpha.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleAlpha($value)
         {
@@ -1527,8 +1537,8 @@
         //
         // Handle values of type printables.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handlePrint($value)
         {
@@ -1543,8 +1553,8 @@
         //
         // Handle values of type whitespace.
         //
-        // @param mixed value a value to sanitize
-        // @return array array(is_valid, sanitized)
+        // @param mixed value  a value to sanitize
+        // @return array  array(is_valid, sanitized)
         //
         protected function handleWhite($value)
         {
@@ -1559,9 +1569,9 @@
         //
         // Apply filter 'Lower'.
         //
-        // @param mixed value       the value to filter
+        // @param mixed value  the value to filter
         // @param array parameters  parameters to use
-        // @return array array(is_valid, filtered_value)
+        // @return array  array(is_valid, filtered_value)
         //
         protected function filterLower($value, $parameters=NULL)
         {
@@ -1574,9 +1584,9 @@
         //
         // Apply filter 'Upper'.
         //
-        // @param mixed value       the value to filter
+        // @param mixed value  the value to filter
         // @param array parameters  parameters to use
-        // @return array array(is_valid, filtered_value)
+        // @return array  array(is_valid, filtered_value)
         //
         protected function filterUpper($value, $parameters=NULL)
         {
@@ -1589,9 +1599,9 @@
         //
         // Apply filter 'Between'.
         //
-        // @param mixed value       the value to filter
+        // @param mixed value  the value to filter
         // @param array parameters  parameters to use
-        // @return array array(is_valid, filtered_value)
+        // @return array  array(is_valid, filtered_value)
         //
         protected function filterBetween($value, $parameters=NULL)
         {
@@ -1603,9 +1613,9 @@
         //
         // Apply filter 'Member'.
         //
-        // @param mixed value       the value to filter
+        // @param mixed value  the value to filter
         // @param array parameters  parameters to use
-        // @return array array(is_valid, filtered_value)
+        // @return array  array(is_valid, filtered_value)
         //
         protected function filterMember($value, $parameters=NULL)
         {
@@ -1617,8 +1627,8 @@
         //
         // Sanitize value according to given types bitmask.
         //
-        // @param mixed value    the value given by context[searched]
-        // @param integer types  a bitmask representing valid types
+        // @param mixed value  the value given by context[searched]
+        // @param int types  a bitmask representing valid types
         // @return array  an array(is_valid, sanitized_value)
         //                where is_valid says whether or not is in one of types
         //
@@ -1661,7 +1671,7 @@
         //
         // Apply all filters given by $filters to $value.
         //
-        // @param mixed value    the value given by context[searched]
+        // @param mixed value  the value given by context[searched]
         // @param array filters  list of arrays (filter, params) to be applied
         // @return array  an array(is_valid, filtered_value)
         //                where is_valid says whether or not is in one of types
@@ -1695,8 +1705,8 @@
         //
         // Parse a parameter value.
         //
-        // @param mixed value    the value given by context[searched]
-        // @param integer types  a bitmask representing valid types
+        // @param mixed value  the value given by context[searched]
+        // @param int types  a bitmask representing valid types
         // @param array filters  list of arrays (filter, params) to be applied
         // @return array  an array(is_valid, sanitized_and_filtered_value)
         //                where is_valid says whether or not is in one of types
@@ -1716,8 +1726,8 @@
         //
         // Find parameter in contexts and parse it
         //
-        // @param string name the parameter to search for
-        // @return mixed parameter content, default value, whatever, ...
+        // @param string name  the parameter to search for
+        // @return mixed  parameter content, default value, whatever, ...
         //
         public function getParameter($name)
         {
@@ -1771,8 +1781,8 @@
         //
         // Get name from contexts and return validity of a variable.
         //
-        // @param string name the parameter to search for
-        // @return bool if found, return validity of input else false
+        // @param string name  the parameter to search for
+        // @return boolean  if found, return validity of input else false
         //
         public function getValidity($name)
         {
@@ -1799,8 +1809,8 @@
         //
         // Magic method.
         //
-        // @param string name the parameter to search for or method name
-        // @return mixed parameter content, default value, whatever, ...
+        // @param string name  the parameter to search for or method name
+        // @return mixed  parameter content, default value, whatever, ...
         //
         public function __get($name)
         {
