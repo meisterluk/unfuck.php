@@ -124,7 +124,7 @@
     // @param mixed val a value to parse
     // @return boolean  test value to be considered as 'empty' or not
     //
-    function is_empty($val)
+    function isEmpty($val)
     {
         if (is_string($val))
         {
@@ -687,7 +687,7 @@
 
             $size = $this->counter + (int)$additionals;
 
-            if (is_empty($name))
+            if (isEmpty($name))
                 $name = '';
             else
                 $name = '[Stack '.$this->name.']';
