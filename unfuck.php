@@ -5,7 +5,7 @@
     setlocale(LC_TIME, "en_US.UTF-8");
     date_default_timezone_set("America/New_York");
 
-    
+    // @config
     // E_ERROR, E_WARNING,  E_PARSE, E_NOTICE, E_CORE_ERROR,
     // E_CORE_WARNING, E_COMPILE_ERROR, E_COMPILE_WARNING,
     // E_USER_ERROR, E_USER_WARNING, E_USER_NOTICE, E_STRICT
@@ -145,6 +145,591 @@
             return (count($val) == 0);
         }
         return false;  // eg. object
+    }
+
+    //
+    // A basic stack implementation.
+    // Heavily inspired by python's list datatype.
+    //
+    // list behavior
+    //   A real stack is one where you can only access the top element.
+    //   Therefore the interface only provides push() and pop().
+    //   However in practice access to other elements is helpful in some
+    //   cases. So just like python's list, this datatype methods to
+    //   interact with elements "in the middle".
+    //
+    // stackorder / listorder
+    //   If you access elements in the middle of the list. Are those
+    //   elements in their natural (order of pushing) or reversed order
+    //   (order of popping)? You can configure this in the constructor
+    //   and modify the property during runtime (if necessary).
+    //   In general you will consider listorder to be more intuitive.
+    //
+    // @method __construct($max_size=-1, $order=self::ORDER_LIST)
+    // @method chunk($size)
+    // @method clear()
+    // @method count()
+    // @method diff($stack)
+    // @method equals($stack)
+    // @method exists($value)
+    // @method getStackSize()
+    // @method index($index)
+    // @method intersect($stack)
+    // @method iterate()
+    // @method iterate_filtered($callback, $method="callback")
+    // @method map($callback)
+    // @method pad($size, $value)
+    // @method pop($count=1)
+    // @method push($value)
+    // @method push_rev($value)
+    // @method pushElement()
+    // @method reduce($callback)
+    // @method replace($index, $replacement)
+    // @method reverse()
+    // @method setName($name)
+    // @method shift($count=1)
+    // @method shuffle()
+    // @method slice($offset, $length=null)
+    // @method splice($start, $end, $replacements)
+    // @method sort()
+    // @method unique($sort_flags)
+    // @method unshift($array)
+    //
+    class Stack {
+        const ORDER_LIST = 1;
+        const ORDER_STACK = 2;
+
+        protected $max_size;
+        protected $counter;
+        protected $elements;
+        public $order;
+        public $name;
+
+        //
+        // Constructor.
+        //
+        // @param int max_size  the maximum size of the stack
+        //                      (-1 for infinity)
+        // @param boolean order  The order slices of elements are returned
+        //                       (either ORDER_STACK or ORDER_LIST)
+        //
+        public function __construct($max_size=-1,
+                $order=self::ORDER_LIST)
+        {
+            $this->max_size = $max_size;
+            $this->order = $order;
+            $this->counter = 0;
+            $this->elements = array();
+        }
+
+        //
+        // An interface towards php's array_chunk.
+        // Splits an array into equal-sized parts.
+        //
+        // @param int size  the size of each chunck
+        //
+        public function chunk($size)
+        {
+            if ($this->order == self::ORDER_LIST)
+                $elements = $this->elements;
+            else
+                $elements = array_reverse($this->elements, false);
+
+            return array_chunk($elements, $size, false);
+        }
+
+        //
+        // Clear the stack. In-place method.
+        //
+        public function clear()
+        {
+            $this->elements = array();
+        }
+
+        //
+        // Get the size of the current stack.
+        // Alias for getStackSize.
+        //
+        // @return int  the number of elements
+        //
+        public function count()
+        {
+            return $this->getStackSize();
+        }
+
+        //
+        // Get a new Stack with set of elements different in this stack
+        // and the stack provided as argument.
+        // Note. The position of the element is not important.
+        //
+        // @param Stack stack  a Stack to compare with
+        // @return Stack a new Stack instance with elements of diff
+        //
+        public function diff($stack)
+        {
+            $new = new Stack($this->max_size, $this->order);
+            $diff = array_diff($this->iterate(), $stack->iterate());
+            $new->addArray($diff);
+            return $new;
+        }
+
+        //
+        // Test equality with another stack.
+        //
+        // @param Stack stack  a stack to compare with
+        // @return boolean  is equal
+        //
+        public function equals($stack)
+        {
+            return $this->iterate() === $stack->iterate();
+        }
+
+        //
+        // Does $value exist as element in the stack?
+        //
+        // @param mixed value  the value to look for
+        // @return boolean  $value exists in stack?
+        //
+        public function exists($value)
+        {
+            return in_array($value, $this->elements);
+        }
+
+        //
+        // Get the size of the current stack.
+        // Ie. the number of elements on the stack
+        //
+        // @return int  the number of elements
+        //
+        public function getStackSize()
+        {
+            return $this->counter;
+        }
+
+        //
+        // Indexing.
+        // Access element at $index or throw OutOfRangeException
+        //
+        // @param int index  the index you want to access
+        //
+        public function index($index)
+        {
+            if (array_key_exists($index, $this->elements))
+                return $this->elements[$index];
+
+            $msg = "Provided index for stack is out of range";
+            throw OutOfRangeException($msg);
+        }
+
+        //
+        // Create a new stack with intersected elements between the
+        // current stack and the stack provided as argument
+        //
+        // @param Stack stack  the stack to compare with
+        // @return Stack  the stack with intersected elements
+        //
+        public function intersect($stack)
+        {
+            $new = new Stack($this->max_size, $this->order);
+            $diff = array_intersect($this->iterate(), $stack->iterate());
+            $new->addArray($diff);
+            return $new;
+        }
+
+        //
+        // Return an array for iteration according to configured order.
+        //
+        // @return array  an array you can iterate over
+        //
+        public function iterate()
+        {
+            if ($this->order == self::ORDER_LIST)
+                return array_values($this->elements);
+            else
+                return array_reverse($this->elements, false);
+        }
+
+        //
+        // Return an array for iteration according to configured order
+        // but filter for elements with a callback or an array.
+        //
+        // @param array|callback callback  An array of elements or a
+        //                                 callback to filter for
+        // @param string method  the method (either 'callback' or 'array')
+        // @return array  an array you can iterate over
+        //
+        public function iterate_filtered($callback, $method="callback")
+        {
+            // Please remember that a callback might be an array
+            // (static method). That why $method exists.
+            if ($method === "callback")
+                return array_diff($callback, $this->iterate());
+
+            return array_filter($this->iterate(), $callback);
+        }
+
+        //
+        // Apply a callback to each element of the stack. In-place method.
+        //
+        // @param callback callback  The callback to apply
+        //
+        public function map($callback)
+        {
+            return array_map($callback, $this->elements);
+        }
+
+        //
+        // Array padding.
+        // Adjust size of stack to $size by popping elements or
+        // pushing (one or more) $value. In-place method.
+        //
+        // @param int size  the target size
+        // @param mixed value  the value to increase size
+        //
+        public function pad($size, $value)
+        {
+            $this->elements = array_pad($this->elements, $size, $value);
+            $this->counter = $size;
+        }
+
+        //
+        // Pop one or more elements of the stack.
+        //
+        // Note. Unlike indexing the returned elements will be removed
+        //       from the stack.
+        // Note. The order of the returned elements depends on the
+        //       configured order for the stack.
+        //
+        // Throws an UnderflowException for popping from empty stack.
+        //
+        // @param count  how many elements shall be popped?
+        // @return a value (if $count===1) or an array of elements
+        //
+        public function pop($count=1)
+        {
+            if ($this->counter < $count)
+                throw UnderflowException("Popping too many arguments");
+
+            $elements = array_slice($this->elements, -$count,
+                                    $count, false);
+
+            if ($this->order == self::ORDER_STACK)
+                $elements = array_reverse($elements, false);
+
+            $this->elements = array_slice($this->elements, 0, -$count);
+            $this->counter -= $count;
+            return $elements;
+        }
+
+        //
+        // Add one or more values to the top of the stack.
+        // An OverflowException might occur. In-place method.
+        //
+        // Note. Independent of the configured order, the left-most
+        //       value gets pushed first. So the order will be preserved.
+        // Note. Use push_rev() for the reversed order.
+        // Note. Use pushElement() for the order configured in the
+        //       constructor.
+        // Note. Variadic function.
+        //
+        public function push($value)
+        {
+            if (func_num_args() > 1)
+            {
+                $args = func_get_args();
+                $this->so_check('Failed to push values', count($args));
+                array_merge($this->elements, $args);
+                $this->counter += count($array);
+
+            } else {
+                $this->so_check('Failed to push value', 1);
+                $this->elements[] = $value;
+                $this->counter += 1;
+            }
+        }
+
+        //
+        // Add one or more values to the top of the stack in reversed
+        // order. In-place method.
+        //
+        // Note. Independent of the configured order, the left-most
+        //       value gets pushed last. So the order will be reversed.
+        // Note. See also push()
+        // Note. Variadic function.
+        //
+        public function push_rev($value)
+        {
+            if (func_num_args() > 1)
+            {
+                $args = array_reverse(func_get_args());
+                $this->so_check('Failed to push values', count($args));
+                array_merge($this->elements, $args);
+                $this->counter += count($array);
+
+            } else {
+                $this->so_check('Failed to push value', 1);
+                $this->elements[] = $value;
+                $this->counter += 1;
+            }
+        }
+
+        //
+        // Add one or more values to the top of the stack.
+        // The order depends on the configured order in the constructor.
+        // In-place method.
+        //
+        // Note. See also push()
+        //
+        // @param mixed value  the value to push
+        //
+        public function pushElement()
+        {
+            if ($this->order == self::ORDER_STACK)
+                call_user_func_array(array($this, 'push_rev'),
+                                     func_get_args());
+            else
+                call_user_func_array(array($this, 'push'),
+                                     func_get_args());
+        }
+
+        //
+        // A reduce function in functional programming takes a callback
+        // and a list of elements. It applies the callback (2 arguments)
+        // to the first two elements of the list and afterwards
+        // cumulatively to the previous result and the next element.
+        //
+        // Note. The order of evaluation depends on the configured order
+        //       in the constructor.
+        // Note. Returns null if stack is empty.
+        // Note. Does not modify the stack.
+        //
+        // @param callback callback  A callback to perform reduce()
+        // @return mixed  the result of the reduce() given by the callback
+        //
+        public function reduce($callback)
+        {
+            if ($this->counter === 0)
+                return null;
+            if ($this->counter === 1)
+                return $this->elements[0];
+
+            $result = $this->elements[0];
+            $elements = $this->elements;
+            if ($this->order == self::ORDER_STACK)
+                $elements = array_reverse($elements);
+
+            foreach (array_slice($elements, 1) as $value)
+                $result = $callback($result, $value);
+
+            return $result;
+        }
+
+        //
+        // Replace value at $index with $replacement. In-place method.
+        // Throws an OutOfRangeException if index does not exist.
+        //
+        // @param int index  the index to look for
+        // @param mixed replacement  the value to insert
+        //
+        public function replace($index, $replacement)
+        {
+            if (array_key_exists($index, $this->elements))
+                $this->elements[$index] = $replacement;
+            else
+                throw OutOfRangeException("Replacing element out of range");
+        }
+
+        //
+        // Reverse the stack. In-place method.
+        //
+        public function reverse()
+        {
+            $this->elements = array_reverse($this->elements, false);
+        }
+
+        //
+        // Set a name. Provide better messages in error handling.
+        // In-place method.
+        //
+        // @param string name  a name for the stack
+        //
+        public function setName($name)
+        {
+            $this->name = (string)$name;
+        }
+
+        //
+        // pop() for the bottom of the stack.
+        // Will remove $count elements from the bottom of the stack.
+        //
+        // Note. Unlike indexing the returned elements will be removed
+        //       from the stack.
+        // Note. The order of the returned elements depends on the
+        //       configured order for the stack.
+        //
+        // Throws an UnderflowException for shifting from empty stack.
+        //
+        // @param count  how many elements shall be shifted?
+        // @return a value (if $count===1) or an array of elements
+        //
+        public function shift($count=1)
+        {
+            if ($this->counter < $count)
+                throw UnderflowException("Shifting too many arguments");
+
+            $elements = array_slice($this->elements, 0, $count);
+
+            if ($this->order == self::ORDER_STACK)
+                $elements = array_reverse($elements, false);
+
+            $this->elements = array_slice($this->elements, $count);
+            $this->counter -= $count;
+            return $elements;
+        }
+
+        //
+        // Shuffle stack. In-place method.
+        //
+        public function shuffle()
+        {
+            array_values(shuffle($this->elements));
+        }
+
+        //
+        // Slice the stack.
+        //
+        // @param int offset  the offset for the slice
+        // @param int|null length  length of return value or until end
+        // @return array  array of sliced elements
+        //
+        public function slice($offset, $length=null)
+        {
+            if ($length === null)
+                $elements = array_slice($this->elements, $offset);
+            else
+                $elements = array_slice($this->elements, $offset, $length);
+
+            if ($this->order == self::ORDER_STACK)
+                $elements = array_reverse($elements, false);
+
+            return $elements;
+        }
+
+        //
+        // Take some slice and replace elements of slice with
+        // $replacements. In-place method.
+        // Note. The interval [$start, $end) must not cross the end of
+        //       the array. Throw a RangeException in case.
+        // Note. According to set builder notation the $start is
+        //       inclusive; the end is exclusive.
+        //
+        // @param int start  the start index of the slice
+        // @param int end  the end index of the slice
+        // @param array replacements  elements inserted instead
+        //
+        public function splice($start, $end, $replacements)
+        {
+            if ($start < 0)
+                $start = count($this->elements) - $start;
+            if ($end < 0)
+                $end = count($this->elements) - $end;
+
+            if ($start === $end)
+                return $this->replace($start, $replacements[0]);
+
+            if ($start > $end)
+                throw RangeException("Cannot splice above Stack bounds");
+
+            $head = array_slice($this->elements, 0, $start);
+            $tail = array_slice($this->elements, $end);
+
+            $this->elements = array_merge($head, $replacements, $tail);
+        }
+
+        //
+        // Sort elements of the stack. In-place method.
+        // Note. You might wanna use iterate() or pop() afterwards.
+        //
+        public function sort()
+        {
+            sort($this->elements);
+        }
+
+        //
+        // Test whether or not a stackoverflow occurs or is going to occur.
+        //
+        // If $additionals is not provided it will check the current stack
+        // for a stack overflow. If $additional is provided it assumes you
+        // are going to push $additionals elements to the stack and tests
+        // the overflow after the hypothetical push.
+        // Note. $additionals might be negative.
+        //
+        // Throws an OverflowException or UnderflowException in case.
+        //
+        // @param string msg  the message to throw OverflowException with
+        //                    (should describe what you where currently doing)
+        // @param int additionals  how many elements are going to be
+        //                         pushed to the array?
+        //
+        protected function so_check($msg, $additionals=0)
+        {
+            if ($this->max_size == -1)  // infinite size stack
+                return;
+
+            $size = $this->counter + (int)$additionals;
+
+            if (is_empty($name))
+                $name = '';
+            else
+                $name = '[Stack '.$this->name.']';
+
+            if ($size > $this->max_size)
+            {
+                $overflow = '[size %d > %d]';
+                $overflow = sprintf($overflow, $size, $this->max_size);
+
+                $error_msg = implode(' ', array($name, $overflow, $msg));
+                throw OverflowException($error_msg);
+
+            } elseif (0 > $size) {
+                $overflow = '[size 0 > %d]';
+                $overflow = sprintf($overflow, $size);
+
+                $error_msg = implode(' ', array($name, $overflow, $msg));
+                throw OverflowException($error_msg);
+            }
+        }
+
+        //
+        // Remove duplicate values from stack. In-place method.
+        //
+        // [0] http://us.php.net/manual/de/function.array-unique.php
+        //
+        // @param int sort_flags  Flags defining comparison configuration
+        //                        see also [0]
+        //
+        public function unique($sort_flags)
+        {
+            $this->elements = array_unique($this->elements, $sort_flags);
+            $this->counter = count($this->elements);
+        }
+
+        //
+        // Will insert $array at the bottom of the stack. In-place method.
+        // Note. It will be inserted in the configured order.
+        //
+        // @array array array  an array to shift
+        //
+        public function unshift($array)
+        {
+            $this->so_check('Cannot unshift so many elements',
+                            count($array));
+
+            if ($this->order == self::ORDER_LIST)
+                $array = array_reverse($array, false);
+
+            $this->elements = array_merge($array, $this->elements);
+        }
     }
 
     //
@@ -1224,561 +1809,6 @@
                 return $this->getValidity(substr($name, 2));
             else
                 return $this->{$name};
-        }
-    }
-
-    //
-    // A basic stack implementation.
-    // Heavily inspired by python's list datatype.
-    //
-    // list behavior
-    //   A real stack is one where you can only access the top element.
-    //   Therefore the interface only provides push() and pop().
-    //   However in practice access to other elements is helpful in some
-    //   cases. So just like python's list, this datatype methods to
-    //   interact with elements "in the middle".
-    //
-    // stackorder / listorder
-    //   If you access elements in the middle of the list. Are those
-    //   elements in their natural (order of pushing) or reversed order
-    //   (order of popping)? You can configure this in the constructor
-    //   and modify the property during runtime (if necessary).
-    //   In general you will consider listorder to be more intuitive.
-    //
-    class Stack {
-        const ORDER_LIST = 1;
-        const ORDER_STACK = 2;
-
-        protected $max_size;
-        protected $counter;
-        protected $elements;
-        public $order;
-        public $name;
-
-        //
-        // Constructor.
-        //
-        // @param int max_size  the maximum size of the stack
-        //                      (-1 for infinity)
-        // @param boolean order  The order slices of elements are returned
-        //                       (either ORDER_STACK or ORDER_LIST)
-        //
-        public function __construct($max_size=-1,
-                $order=self::ORDER_LIST)
-        {
-            $this->max_size = $max_size;
-            $this->order = $order;
-            $this->counter = 0;
-            $this->elements = array();
-        }
-
-        //
-        // An interface towards php's array_chunk.
-        // Splits an array into equal-sized parts.
-        //
-        // @param int size  the size of each chunck
-        //
-        public function chunk($size)
-        {
-            if ($this->order == self::ORDER_LIST)
-                $elements = $this->elements;
-            else
-                $elements = array_reverse($this->elements, false);
-
-            return array_chunk($elements, $size, false);
-        }
-
-        //
-        // Clear the stack. In-place method.
-        //
-        public function clear()
-        {
-            $this->elements = array();
-        }
-
-        //
-        // Get the size of the current stack.
-        // Alias for getStackSize.
-        //
-        // @return int  the number of elements
-        //
-        public function count()
-        {
-            return $this->getStackSize();
-        }
-
-        //
-        // Get a new Stack with set of elements different in this stack
-        // and the stack provided as argument.
-        // Note. The position of the element is not important.
-        //
-        // @param Stack stack  a Stack to compare with
-        // @return Stack a new Stack instance with elements of diff
-        //
-        public function diff($stack)
-        {
-            $new = new Stack($this->max_size, $this->order);
-            $diff = array_diff($this->iterate(), $stack->iterate());
-            $new->addArray($diff);
-            return $new;
-        }
-
-        //
-        // Test equality with another stack.
-        //
-        // @param Stack stack  a stack to compare with
-        // @return boolean  is equal
-        //
-        public function equals($stack)
-        {
-            return $this->iterate() === $stack->iterate();
-        }
-
-        //
-        // Does $value exist as element in the stack?
-        //
-        // @param mixed value  the value to look for
-        // @return boolean  $value exists in stack?
-        //
-        public function exists($value)
-        {
-            return in_array($value, $this->elements);
-        }
-
-        //
-        // Get the size of the current stack.
-        // Ie. the number of elements on the stack
-        //
-        // @return int  the number of elements
-        //
-        public function getStackSize()
-        {
-            return $this->counter;
-        }
-
-        //
-        // Indexing.
-        // Access element at $index or throw OutOfRangeException
-        //
-        // @param int index  the index you want to access
-        //
-        public function index($index)
-        {
-            if (array_key_exists($index, $this->elements))
-                return $this->elements[$index];
-
-            $msg = "Provided index for stack is out of range";
-            throw OutOfRangeException($msg);
-        }
-
-        //
-        // Create a new stack with intersected elements between the
-        // current stack and the stack provided as argument
-        //
-        // @param Stack stack  the stack to compare with
-        // @return Stack  the stack with intersected elements
-        //
-        public function intersect($stack)
-        {
-            $new = new Stack($this->max_size, $this->order);
-            $diff = array_intersect($this->iterate(), $stack->iterate());
-            $new->addArray($diff);
-            return $new;
-        }
-
-        //
-        // Return an array for iteration according to configured order.
-        //
-        // @return array  an array you can iterate over
-        //
-        public function iterate()
-        {
-            if ($this->order == self::ORDER_LIST)
-                return array_values($this->elements);
-            else
-                return array_reverse($this->elements, false);
-        }
-
-        //
-        // Return an array for iteration according to configured order
-        // but filter for elements with a callback or an array.
-        //
-        // @param array|callback callback  An array of elements or a
-        //                                 callback to filter for
-        // @param string method  the method (either 'callback' or 'array')
-        // @return array  an array you can iterate over
-        //
-        public function iterate_filtered($callback, $method="callback")
-        {
-            // Please remember that a callback might be an array
-            // (static method). That why $method exists.
-            if ($method === "callback")
-                return array_diff($callback, $this->iterate());
-
-            return array_filter($this->iterate(), $callback);
-        }
-
-        //
-        // Apply a callback to each element of the stack. In-place method.
-        //
-        // @param callback callback  The callback to apply
-        //
-        public function map($callback)
-        {
-            return array_map($callback, $this->elements);
-        }
-
-        //
-        // Array padding.
-        // Adjust size of stack to $size by popping elements or
-        // pushing (one or more) $value. In-place method.
-        //
-        // @param int size  the target size
-        // @param mixed value  the value to increase size
-        //
-        public function pad($size, $value)
-        {
-            $this->elements = array_pad($this->elements, $size, $value);
-            $this->counter = $size;
-        }
-
-        //
-        // Pop one or more elements of the stack.
-        //
-        // Note. Unlike indexing the returned elements will be removed
-        //       from the stack.
-        // Note. The order of the returned elements depends on the
-        //       configured order for the stack.
-        //
-        // Throws an UnderflowException for popping from empty stack.
-        //
-        // @param count  how many elements shall be popped?
-        // @return a value (if $count===1) or an array of elements
-        //
-        public function pop($count=1)
-        {
-            if ($this->counter < $count)
-                throw UnderflowException("Popping too many arguments");
-
-            $elements = array_slice($this->elements, -$count,
-                                    $count, false);
-
-            if ($this->order == self::ORDER_STACK)
-                $elements = array_reverse($elements, false);
-
-            $this->elements = array_slice($this->elements, 0, -$count);
-            $this->counter -= $count;
-            return $elements;
-        }
-
-        //
-        // Add one or more values to the top of the stack.
-        // An OverflowException might occur. In-place method.
-        //
-        // Note. Independent of the configured order, the left-most
-        //       value gets pushed first. So the order will be preserved.
-        // Note. Use push_rev() for the reversed order.
-        // Note. Use pushElement() for the order configured in the
-        //       constructor.
-        // Note. Variadic function.
-        //
-        public function push($value)
-        {
-            if (func_num_args() > 1)
-            {
-                $args = func_get_args();
-                $this->so_check('Failed to push values', count($args));
-                array_merge($this->elements, $args);
-                $this->counter += count($array);
-
-            } else {
-                $this->so_check('Failed to push value', 1);
-                $this->elements[] = $value;
-                $this->counter += 1;
-            }
-        }
-
-        //
-        // Add one or more values to the top of the stack in reversed
-        // order. In-place method.
-        //
-        // Note. Independent of the configured order, the left-most
-        //       value gets pushed last. So the order will be reversed.
-        // Note. See also push()
-        // Note. Variadic function.
-        //
-        public function push_rev($value)
-        {
-            if (func_num_args() > 1)
-            {
-                $args = array_reverse(func_get_args());
-                $this->so_check('Failed to push values', count($args));
-                array_merge($this->elements, $args);
-                $this->counter += count($array);
-
-            } else {
-                $this->so_check('Failed to push value', 1);
-                $this->elements[] = $value;
-                $this->counter += 1;
-            }
-        }
-
-        //
-        // Add one or more values to the top of the stack.
-        // The order depends on the configured order in the constructor.
-        // In-place method.
-        //
-        // Note. See also push()
-        //
-        // @param mixed value  the value to push
-        //
-        public function pushElement()
-        {
-            if ($this->order == self::ORDER_STACK)
-                call_user_func_array(array($this, 'push_rev'),
-                                     func_get_args());
-            else
-                call_user_func_array(array($this, 'push'),
-                                     func_get_args());
-        }
-
-        //
-        // A reduce function in functional programming takes a callback
-        // and a list of elements. It applies the callback (2 arguments)
-        // to the first two elements of the list and afterwards
-        // cumulatively to the previous result and the next element.
-        //
-        // Note. The order of evaluation depends on the configured order
-        //       in the constructor.
-        // Note. Returns null if stack is empty.
-        // Note. Does not modify the stack.
-        //
-        // @param callback callback  A callback to perform reduce()
-        // @return mixed  the result of the reduce() given by the callback
-        //
-        public function reduce($callback)
-        {
-            if ($this->counter === 0)
-                return null;
-            if ($this->counter === 1)
-                return $this->elements[0];
-
-            $result = $this->elements[0];
-            $elements = $this->elements;
-            if ($this->order == self::ORDER_STACK)
-                $elements = array_reverse($elements);
-
-            foreach (array_slice($elements, 1) as $value)
-                $result = $callback($result, $value);
-
-            return $result;
-        }
-
-        //
-        // Replace value at $index with $replacement. In-place method.
-        // Throws an OutOfRangeException if index does not exist.
-        //
-        // @param int index  the index to look for
-        // @param mixed replacement  the value to insert
-        //
-        public function replace($index, $replacement)
-        {
-            if (array_key_exists($index, $this->elements))
-                $this->elements[$index] = $replacement;
-            else
-                throw OutOfRangeException("Replacing element out of range");
-        }
-
-        //
-        // Reverse the stack. In-place method.
-        //
-        public function reverse()
-        {
-            $this->elements = array_reverse($this->elements, false);
-        }
-
-        //
-        // Set a name. Provide better messages in error handling.
-        // In-place method.
-        //
-        // @param string name  a name for the stack
-        //
-        public function setName($name)
-        {
-            $this->name = (string)$name;
-        }
-
-        //
-        // pop() for the bottom of the stack.
-        // Will remove $count elements from the bottom of the stack.
-        //
-        // Note. Unlike indexing the returned elements will be removed
-        //       from the stack.
-        // Note. The order of the returned elements depends on the
-        //       configured order for the stack.
-        //
-        // Throws an UnderflowException for shifting from empty stack.
-        //
-        // @param count  how many elements shall be shifted?
-        // @return a value (if $count===1) or an array of elements
-        //
-        public function shift($count=1)
-        {
-            if ($this->counter < $count)
-                throw UnderflowException("Shifting too many arguments");
-
-            $elements = array_slice($this->elements, 0, $count);
-
-            if ($this->order == self::ORDER_STACK)
-                $elements = array_reverse($elements, false);
-
-            $this->elements = array_slice($this->elements, $count);
-            $this->counter -= $count;
-            return $elements;
-        }
-
-        //
-        // Shuffle stack. In-place method.
-        //
-        public function shuffle()
-        {
-            array_values(shuffle($this->elements));
-        }
-
-        //
-        // Slice the stack.
-        //
-        // @param int offset  the offset for the slice
-        // @param int|null length  length of return value or until end
-        // @return array  array of sliced elements
-        //
-        public function slice($offset, $length=null)
-        {
-            if ($length === null)
-                $elements = array_slice($this->elements, $offset);
-            else
-                $elements = array_slice($this->elements, $offset, $length);
-
-            if ($this->order == self::ORDER_STACK)
-                $elements = array_reverse($elements, false);
-
-            return $elements;
-        }
-
-        //
-        // Take some slice and replace elements of slice with
-        // $replacements. In-place method.
-        // Note. The interval [$start, $end) must not cross the end of
-        //       the array. Throw a RangeException in case.
-        // Note. According to set builder notation the $start is
-        //       inclusive; the end is exclusive.
-        //
-        // @param int start  the start index of the slice
-        // @param int end  the end index of the slice
-        // @param array replacements  elements inserted instead
-        //
-        public function splice($start, $end, $replacements)
-        {
-            if ($start < 0)
-                $start = count($this->elements) - $start;
-            if ($end < 0)
-                $end = count($this->elements) - $end;
-
-            if ($start === $end)
-                return $this->replace($start, $replacements[0]);
-
-            if ($start > $end)
-                throw RangeException("Cannot splice above Stack bounds");
-
-            $head = array_slice($this->elements, 0, $start);
-            $tail = array_slice($this->elements, $end);
-
-            $this->elements = array_merge($head, $replacements, $tail);
-        }
-
-        //
-        // Sort elements of the stack. In-place method.
-        // Note. You might wanna use iterate() or pop() afterwards.
-        //
-        public function sort()
-        {
-            sort($this->elements);
-        }
-
-        //
-        // Test whether or not a stackoverflow occurs or is going to occur.
-        //
-        // If $additionals is not provided it will check the current stack
-        // for a stack overflow. If $additional is provided it assumes you
-        // are going to push $additionals elements to the stack and tests
-        // the overflow after the hypothetical push.
-        // Note. $additionals might be negative.
-        //
-        // Throws an OverflowException or UnderflowException in case.
-        //
-        // @param string msg  the message to throw OverflowException with
-        //                    (should describe what you where currently doing)
-        // @param int additionals  how many elements are going to be
-        //                         pushed to the array?
-        //
-        protected function so_check($msg, $additionals=0)
-        {
-            if ($this->max_size == -1)  // infinite size stack
-                return;
-
-            $size = $this->counter + (int)$additionals;
-
-            if (is_empty($name))
-                $name = '';
-            else
-                $name = '[Stack '.$this->name.']';
-
-            if ($size > $this->max_size)
-            {
-                $overflow = '[size %d > %d]';
-                $overflow = sprintf($overflow, $size, $this->max_size);
-
-                $error_msg = implode(' ', array($name, $overflow, $msg));
-                throw OverflowException($error_msg);
-
-            } elseif (0 > $size) {
-                $overflow = '[size 0 > %d]';
-                $overflow = sprintf($overflow, $size);
-
-                $error_msg = implode(' ', array($name, $overflow, $msg));
-                throw OverflowException($error_msg);
-            }
-        }
-
-        //
-        // Remove duplicate values from stack. In-place method.
-        //
-        // [0] http://us.php.net/manual/de/function.array-unique.php
-        //
-        // @param int sort_flags  Flags defining comparison configuration
-        //                        see also [0]
-        //
-        public function unique($sort_flags)
-        {
-            $this->elements = array_unique($this->elements, $sort_flags);
-            $this->counter = count($this->elements);
-        }
-
-        //
-        // Will insert $array at the bottom of the stack. In-place method.
-        // Note. It will be inserted in the configured order.
-        //
-        // @array array array  an array to shift
-        //
-        public function unshift($array)
-        {
-            $this->so_check('Cannot unshift so many elements',
-                            count($array));
-
-            if ($this->order == self::ORDER_LIST)
-                $array = array_reverse($array, false);
-
-            $this->elements = array_merge($array, $this->elements);
         }
     }
 ?>
