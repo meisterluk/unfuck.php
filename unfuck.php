@@ -596,9 +596,11 @@
         //
         // Shuffle stack. In-place method.
         //
+        // @return boolean  boolean indicating success or failure
+        //
         public function shuffle()
         {
-            shuffle($this->elements);
+            return shuffle($this->elements);
         }
 
         //
