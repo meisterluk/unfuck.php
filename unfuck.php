@@ -598,7 +598,7 @@
         //
         public function shuffle()
         {
-            array_values(shuffle($this->elements));
+            shuffle($this->elements);
         }
 
         //
