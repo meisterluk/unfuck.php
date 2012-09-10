@@ -2,8 +2,8 @@
     declare(encoding='utf-8');
 
     // @config  adjust to your own needs
-    setlocale(LC_TIME, "en_US.UTF-8");
-    date_default_timezone_set("America/New_York");
+    setlocale(LC_TIME, 'en_US.UTF-8');
+    date_default_timezone_set('America/New_York');
 
     // @config
     // E_ERROR, E_WARNING,  E_PARSE, E_NOTICE, E_CORE_ERROR,
@@ -122,7 +122,7 @@
     // Sorry, but code stands for itself.
     //
     // @param mixed val a value to parse
-    // @return boolean  test value to be considered as "empty" or not
+    // @return boolean  test value to be considered as 'empty' or not
     //
     function is_empty($val)
     {
@@ -157,7 +157,7 @@
     //   Therefore the interface only provides push() and pop().
     //   However in practice access to other elements is helpful in some
     //   cases. So just like python's list, this datatype methods to
-    //   interact with elements "in the middle".
+    //   interact with elements 'in the middle'.
     //
     // *stackorder / listorder*
     //   If you access elements in the middle of the list. Are those
@@ -177,7 +177,7 @@
     // @method index($index)
     // @method intersect($stack)
     // @method iterate()
-    // @method iterate_filtered($callback, $method="callback")
+    // @method iterate_filtered($callback, $method='callback')
     // @method map($callback)
     // @method pad($size, $value)
     // @method pop($count=1)
@@ -319,7 +319,7 @@
             if (array_key_exists($index, $this->elements))
                 return $this->elements[$index];
 
-            $msg = "Provided index for stack is out of range";
+            $msg = 'Provided index for stack is out of range';
             throw OutOfRangeException($msg);
         }
 
@@ -360,11 +360,11 @@
         // @param string method  the method (either 'callback' or 'array')
         // @return array  an array you can iterate over
         //
-        public function iterate_filtered($callback, $method="callback")
+        public function iterate_filtered($callback, $method='callback')
         {
             // Please remember that a callback might be an array
             // (static method). That why $method exists.
-            if ($method === "callback")
+            if ($method === 'callback')
                 return array_diff($callback, $this->iterate());
 
             return array_filter($this->iterate(), $callback);
@@ -410,7 +410,7 @@
         public function pop($count=1)
         {
             if ($this->counter < $count)
-                throw UnderflowException("Popping too many arguments");
+                throw UnderflowException('Popping too many arguments');
 
             $elements = array_slice($this->elements, -$count,
                                     $count, false);
@@ -542,7 +542,7 @@
             if (array_key_exists($index, $this->elements))
                 $this->elements[$index] = $replacement;
             else
-                throw OutOfRangeException("Replacing element out of range");
+                throw OutOfRangeException('Replacing element out of range');
         }
 
         //
@@ -581,7 +581,7 @@
         public function shift($count=1)
         {
             if ($this->counter < $count)
-                throw UnderflowException("Shifting too many arguments");
+                throw UnderflowException('Shifting too many arguments');
 
             $elements = array_slice($this->elements, 0, $count);
 
@@ -645,7 +645,7 @@
                 return $this->replace($start, $replacements[0]);
 
             if ($start > $end)
-                throw RangeException("Cannot splice above Stack bounds");
+                throw RangeException('Cannot splice above Stack bounds');
 
             $head = array_slice($this->elements, 0, $start);
             $tail = array_slice($this->elements, $end);
