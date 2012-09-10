@@ -54,6 +54,7 @@
     //
     function _e($text)
     {
+        // @config  ENT_QUOTES if _e() is applied to XML attributes
         return htmlspecialchars($text, ENT_COMPAT);
     }
 
