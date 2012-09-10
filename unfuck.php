@@ -320,7 +320,7 @@
                 return $this->elements[$index];
 
             $msg = 'Provided index for stack is out of range';
-            throw OutOfRangeException($msg);
+            throw new OutOfRangeException($msg);
         }
 
         //
@@ -410,7 +410,7 @@
         public function pop($count=1)
         {
             if ($this->counter < $count)
-                throw UnderflowException('Popping too many arguments');
+                throw new UnderflowException('Popping too many arguments');
 
             $elements = array_slice($this->elements, -$count,
                                     $count, false);
@@ -542,7 +542,7 @@
             if (array_key_exists($index, $this->elements))
                 $this->elements[$index] = $replacement;
             else
-                throw OutOfRangeException('Replacing element out of range');
+                throw new OutOfRangeException('Replace element out of range');
         }
 
         //
@@ -581,7 +581,7 @@
         public function shift($count=1)
         {
             if ($this->counter < $count)
-                throw UnderflowException('Shifting too many arguments');
+                throw new UnderflowException('Shifting too many arguments');
 
             $elements = array_slice($this->elements, 0, $count);
 
@@ -647,7 +647,7 @@
                 return $this->replace($start, $replacements[0]);
 
             if ($start > $end)
-                throw RangeException('Cannot splice above Stack bounds');
+                throw new RangeException('Cannot splice above Stack bounds');
 
             $head = array_slice($this->elements, 0, $start);
             $tail = array_slice($this->elements, $end);
@@ -698,14 +698,14 @@
                 $overflow = sprintf($overflow, $size, $this->max_size);
 
                 $error_msg = implode(' ', array($name, $overflow, $msg));
-                throw OverflowException($error_msg);
+                throw new OverflowException($error_msg);
 
             } elseif (0 > $size) {
                 $overflow = '[size 0 > %d]';
                 $overflow = sprintf($overflow, $size);
 
                 $error_msg = implode(' ', array($name, $overflow, $msg));
-                throw OverflowException($error_msg);
+                throw new OverflowException($error_msg);
             }
         }
 
