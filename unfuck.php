@@ -59,13 +59,13 @@
     }
 
     //
-    // Capitalize words in the given string
-    // (ucwords() but also look for hyphens).
+    // Titlecase words in the given string
+    // (ie. ucwords() but also look for hyphens).
     //
     // @param string string  the words
     // @return string  the capitalized input string
     //
-    function capitalize($string)
+    function titlecase($string)
     {
         $index = 0;
         while ($index !== false)
@@ -85,7 +85,7 @@
     //
     function camelCase($string)
     {
-        $string = capitalize($string);
+        $string = titlecase($string);
         $string = str_replace('-', '', $string);
         $string = preg_replace('/(\w)\.(\s)/', '\1\2', $string);
         $string = preg_replace('/\s+/', '', $string);
@@ -177,12 +177,12 @@
     // @method index($index)
     // @method intersect($stack)
     // @method iterate()
-    // @method iterate_filtered($callback, $method='callback')
+    // @method iterateFiltered($callback, $method='callback')
     // @method map($callback)
     // @method pad($size, $value)
     // @method pop($count=1)
     // @method push($value)
-    // @method push_rev($value)
+    // @method pushRev($value)
     // @method pushElement()
     // @method reduce($callback)
     // @method replace($index, $replacement)
@@ -360,7 +360,7 @@
         // @param string method  the method (either 'callback' or 'array')
         // @return array  an array you can iterate over
         //
-        public function iterate_filtered($callback, $method='callback')
+        public function iterateFiltered($callback, $method='callback')
         {
             // Please remember that a callback might be an array
             // (static method). That why $method exists.
@@ -429,7 +429,7 @@
         //
         // Note. Independent of the configured order, the left-most
         //       value gets pushed first. So the order will be preserved.
-        // Note. Use push_rev() for the reversed order.
+        // Note. Use pushRev() for the reversed order.
         // Note. Use pushElement() for the order configured in the
         //       constructor.
         // Note. Variadic function.
@@ -441,12 +441,12 @@
             if (func_num_args() > 1)
             {
                 $args = func_get_args();
-                $this->so_check('Failed to push values', count($args));
+                $this->SOcheck('Failed to push values', count($args));
                 array_merge($this->elements, $args);
                 $this->counter += count($array);
 
             } else {
-                $this->so_check('Failed to push value', 1);
+                $this->SOcheck('Failed to push value', 1);
                 $this->elements[] = $value;
                 $this->counter += 1;
             }
@@ -463,17 +463,17 @@
         //
         // @param mixed value  the value to push to the stack
         //
-        public function push_rev($value)
+        public function pushRev($value)
         {
             if (func_num_args() > 1)
             {
                 $args = array_reverse(func_get_args());
-                $this->so_check('Failed to push values', count($args));
+                $this->SOcheck('Failed to push values', count($args));
                 array_merge($this->elements, $args);
                 $this->counter += count($array);
 
             } else {
-                $this->so_check('Failed to push value', 1);
+                $this->SOcheck('Failed to push value', 1);
                 $this->elements[] = $value;
                 $this->counter += 1;
             }
@@ -491,7 +491,7 @@
         public function pushElement()
         {
             if ($this->order == self::ORDER_STACK)
-                call_user_func_array(array($this, 'push_rev'),
+                call_user_func_array(array($this, 'pushRev'),
                                      func_get_args());
             else
                 call_user_func_array(array($this, 'push'),
@@ -680,7 +680,7 @@
         // @param int additionals  how many elements are going to be
         //                         pushed to the array?
         //
-        protected function so_check($msg, $additionals=0)
+        protected function SOcheck($msg, $additionals=0)
         {
             if ($this->max_size == -1)  // infinite size stack
                 return;
@@ -731,7 +731,7 @@
         //
         public function unshift($array)
         {
-            $this->so_check('Cannot unshift so many elements',
+            $this->SOcheck('Cannot unshift so many elements',
                             count($array));
 
             if ($this->order == self::ORDER_LIST)
@@ -857,7 +857,7 @@
         //
         // @param classes a map between source classes and translated classes
         //
-        protected function translate_classes($classes=NULL)
+        protected function translateClasses($classes=NULL)
         {
             if ($classes === NULL)
                 $classes = array(0 => 'note', 1 => 'alert',
@@ -1341,7 +1341,7 @@
         // @param string filter  the filter identifier name
         // @param boolean  returns always false
         //
-        protected function invalid_filter($filter)
+        protected function invalidFilter($filter)
         {
             $this->log->push('Invalid filter given: '.print_r($type, true), 3);
             return 0;
