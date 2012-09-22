@@ -61,24 +61,34 @@
     //
     // Titlecase words in the given string
     // (ie. ucwords() but also look for hyphens).
+    // Looses all upper/lowercase information given by string.
     //
     // @param string string  the words
     // @return string  the capitalized input string
     //
-    function titlecase($string)
+    function Titlecase($string)
     {
-        $index = 0;
-        while ($index !== false)
+        $string = ucwords(strtolower($string));
+        $chars = array('-', '&', '/', '(', ')', '{', '}', '[', ']', '`', '´',
+                       '<', '>');  // each.{ len == 1 }
+        // all characters after any element in $chars or an whitespace
+        // will be uppercased
+        foreach ($chars as $char)
         {
-            if ($string[$index] === '-')
-                $string[$index+1] = strtoupper($string[$index+1]);
-            $index = strpos($string, '-', $index+1);
+            $index = 0;
+            while ($index !== false)
+            {
+                if ($string[$index] === $char)
+                    $string[$index+1] = strtoupper($string[$index+1]);
+                $index = strpos($string, $char, $index+1);
+            }
         }
-        return ucwords($string);
+        return $string;
     }
 
     //
-    // CamelCase words in the given string
+    // CamelCase words in the given string.
+    // Any whitespace, hyphen and dot at the end of a sentence will be removed.
     //
     // @param string string  the words
     // @return string  the camelcased input string
@@ -86,7 +96,10 @@
     function camelCase($string)
     {
         $string = titlecase($string);
-        $string = str_replace('-', '', $string);
+        $string = str_replace('‐', '', $string); // U+2010
+        $string = str_replace('-', '', $string); // U+002D
+        $string = str_replace('‑', '', $string); // U+2011
+        $string = str_replace('⁃', '', $string); // U+2043
         $string = preg_replace('/(\w)\.(\s)/', '\1\2', $string);
         $string = preg_replace('/\s+/', '', $string);
 
@@ -738,6 +751,45 @@
                 $array = array_reverse($array, false);
 
             $this->elements = array_merge($array, $this->elements);
+        }
+
+        //
+        // The magic __set_state method.
+        //
+        // @param array properties  the properties to set
+        // @return object  an object Stack with properties set to $properties
+        //
+        public static function __set_state($properties)
+        {
+            $stack = new Stack();
+            $stack->max_size = $properties['max_size'];
+            $stack->counter = $properties['counter'];
+            $stack->elements = $properties['elements'];
+            $stack->order = $properties['order'];
+            $stack->name = $properties['name'];
+
+            return $stack;
+        }
+
+        //
+        // String representation of the stack.
+        // Magic method __tostring.
+        //
+        // @return string  the string representation
+        //
+        public function __tostring()
+        {
+            $elements = $this->elements;
+            foreach ($elements as $key => $element)
+            {
+                if (is_string($element))
+                    $elements[$key] = '"'.$element.'"';
+            }
+
+            $str = '[ ';
+            $str .= implode(' | ', $elements);
+            $str .= ' ]';
+            return $str;
         }
     }
 
