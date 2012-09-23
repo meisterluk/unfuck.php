@@ -184,7 +184,7 @@
     //   each method depending on its configuration. And remove the
     //   global variable to avoid global state.
     //
-    // @method __construct($max_size=-1, $order=self::ORDER_LIST)
+    // @method __construct($max_size=self::INFINITY, $order=self::ORDER_LIST)
     // @method chunk($size)
     // @method clear()
     // @method count()
@@ -217,6 +217,7 @@
     class Stack {
         const ORDER_LIST = 1;
         const ORDER_STACK = 2;
+        const INFINITY = -1;
 
         protected $max_size;
         protected $counter;
@@ -228,11 +229,11 @@
         // Constructor.
         //
         // @param int max_size  the maximum size of the stack
-        //                      (-1 for infinity)
+        //                      (self::INFINITY for infinity)
         // @param boolean order  The order slices of elements are returned
         //                       (either ORDER_STACK or ORDER_LIST)
         //
-        public function __construct($max_size=-1,
+        public function __construct($max_size=self::INFINITY,
                 $order=self::ORDER_LIST)
         {
             $this->max_size = $max_size;
@@ -712,7 +713,7 @@
         //
         protected function SOcheck($msg, $additionals=0)
         {
-            if ($this->max_size == -1)  // infinite size stack
+            if ($this->max_size == self::INFINITY)
                 return;
 
             $size = $this->counter + (int)$additionals;
