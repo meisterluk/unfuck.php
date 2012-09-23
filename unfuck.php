@@ -415,13 +415,31 @@
         // Adjust size of stack to $size by popping elements or
         // pushing (one or more) $value. In-place method.
         //
+        // Note. This method behaves very much different than PHP's array_pad.
+        //
         // @param int size  the target size
         // @param mixed value  the value to increase size
         //
         public function pad($size, $value)
         {
-            $this->elements = array_pad($this->elements, $size, $value);
-            $this->counter = $size;
+            if ($size < 0)
+                throw InvalidArgumentException(
+                    'size argument of pad(size, value) must be positive'
+                );
+
+            if ($size > $this->getStackSize())
+            {
+                $this->elements = array_pad($this->elements, $size, $value);
+                $this->counter = $size;
+
+            } else if ($size === $this->getStackSize()) {
+                // nothing.
+
+            } else {
+                $diff = $this->getStackSize() - $size;
+                $this->pop($diff);
+                $this->counter = $size;
+            }
         }
 
         //
