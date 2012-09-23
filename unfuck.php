@@ -253,7 +253,7 @@
         //
         public function chunk($size)
         {
-            if ($this->order == self::ORDER_LIST)
+            if ($this->order === self::ORDER_LIST)
                 $elements = $this->elements;
             else
                 $elements = array_reverse($this->elements, false);
@@ -376,7 +376,7 @@
         //
         public function iterate()
         {
-            if ($this->order == self::ORDER_LIST)
+            if ($this->order === self::ORDER_LIST)
                 return array_values($this->elements);
             else
                 return array_reverse($this->elements, false);
@@ -466,7 +466,7 @@
             $elements = array_slice($this->elements, -$count,
                                     $count, false);
 
-            if ($this->order == self::ORDER_STACK)
+            if ($this->order === self::ORDER_STACK)
                 $elements = array_reverse($elements, false);
 
             $this->elements = array_slice($this->elements, 0, -$count, false);
@@ -545,7 +545,7 @@
         //
         public function pushElement($value)
         {
-            if ($this->order == self::ORDER_STACK)
+            if ($this->order === self::ORDER_STACK)
                 call_user_func_array(array($this, 'pushRev'),
                                      func_get_args());
             else
@@ -575,7 +575,7 @@
                 return $this->elements[0];
 
             $elements = $this->elements;
-            if ($this->order == self::ORDER_STACK)
+            if ($this->order === self::ORDER_STACK)
                 $elements = array_reverse($elements);
 
             $result = $elements[0];
@@ -657,7 +657,7 @@
 
             $elements = array_slice($this->elements, 0, $count);
 
-            if ($this->order == self::ORDER_STACK)
+            if ($this->order === self::ORDER_STACK)
                 $elements = array_reverse($elements, false);
 
             $this->elements = array_slice($this->elements, $count);
@@ -687,7 +687,7 @@
         //
         public function slice($offset, $length=null)
         {
-            if ($this->order == self::ORDER_STACK)
+            if ($this->order === self::ORDER_STACK)
                 $elements = array_reverse($this->elements, false);
             else
                 $elements = $this->elements;
@@ -816,10 +816,11 @@
             $this->SOcheck('Cannot unshift so many elements',
                             count($array));
 
-            if ($this->order == self::ORDER_LIST)
+            if ($this->order === self::ORDER_STACK)
                 $array = array_reverse($array, false);
 
             $this->elements = array_merge($array, $this->elements);
+            $this->counter = count($this->elements);
         }
 
         //
