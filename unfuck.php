@@ -179,6 +179,11 @@
     //   and modify the property during runtime (if necessary).
     //   In general you will consider listorder to be more intuitive.
     //
+    // TODO:
+    //   Probably it's a better idea to provide order as parameter for
+    //   each method depending on its configuration. And remove the
+    //   global variable to avoid global state.
+    //
     // @method __construct($max_size=-1, $order=self::ORDER_LIST)
     // @method chunk($size)
     // @method clear()
@@ -239,6 +244,7 @@
         //
         // An interface towards php's array_chunk.
         // Splits an array into equal-sized parts.
+        // Order of chunks depend on configured order.
         //
         // @param int size  the size of each chunck
         // @return array  an array containing chunks of the stack
@@ -259,6 +265,7 @@
         public function clear()
         {
             $this->elements = array();
+            $this->counter = 0;
         }
 
         //
@@ -284,7 +291,7 @@
         {
             $new = new Stack($this->max_size, $this->order);
             $diff = array_diff($this->iterate(), $stack->iterate());
-            $new->addArray($diff);
+            $new->pushElement($diff);
             return $new;
         }
 
@@ -296,7 +303,13 @@
         //
         public function equals($stack)
         {
-            return $this->iterate() === $stack->iterate();
+            $old_order_this = $this->order;
+
+            $this->order = $stack->order;
+            $equal = ($this->iterate() === $stack->iterate());
+            $this->order = $old_order_this;
+
+            return $equal;
         }
 
         //
@@ -433,7 +446,11 @@
 
             $this->elements = array_slice($this->elements, 0, -$count);
             $this->counter -= $count;
-            return $elements;
+
+            if ($count == 1)
+                return $elements[0];
+            else
+                return $elements;
         }
 
         //
@@ -455,8 +472,8 @@
             {
                 $args = func_get_args();
                 $this->SOcheck('Failed to push values', count($args));
-                array_merge($this->elements, $args);
-                $this->counter += count($array);
+                $this->elements = array_merge($this->elements, $args);
+                $this->counter += count($args);
 
             } else {
                 $this->SOcheck('Failed to push value', 1);
@@ -700,7 +717,7 @@
 
             $size = $this->counter + (int)$additionals;
 
-            if (isEmpty($name))
+            if (isEmpty($this->name))
                 $name = '';
             else
                 $name = '[Stack '.$this->name.']';
