@@ -204,6 +204,7 @@
     // @method pushElement()
     // @method reduce($callback)
     // @method replace($index, $replacement)
+    // @method replaceElements($replacements)
     // @method reverse()
     // @method setName($name)
     // @method shift($count=1)
@@ -521,7 +522,7 @@
             {
                 $args = array_reverse(func_get_args());
                 $this->SOcheck('Failed to push values', count($args));
-                array_merge($this->elements, $args);
+                $array = array_merge($this->elements, $args);
                 $this->counter += count($array);
 
             } else {
@@ -595,6 +596,23 @@
                 $this->elements[$index] = $replacement;
             else
                 throw new OutOfRangeException('Replace element out of range');
+        }
+
+        //
+        // Replace elements using the associative array $replacements.
+        // In-place method.
+        //
+        // @param array replacements  an associative array with keys already
+        //                            pushed at stack to be replaced by the
+        //                            corresponding value
+        //
+        public function replaceElements($replacements)
+        {
+            foreach ($this->elements as $key => $value)
+            {
+                if (array_key_exists($value, $replacements))
+                    $this->elements[$key] = $replacements[$value];
+            }
         }
 
         //
@@ -828,7 +846,11 @@
                         var_export($element, true));
             }
 
-            $str = '[ ';
+            if (isEmpty($this->name))
+                $str = '[ ';
+            else
+                $str = ':'.$this->name.':[ ';
+
             $str .= implode(' | ', $elements);
             $str .= ' ]';
             return $str;
