@@ -293,6 +293,19 @@
             $this->assertEquals($stack->count(), 0);
         }
 
+        // test copy
+
+        public function test_copy()
+        {
+            $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
+            $stack->push(1);
+            $stack->push(3);
+
+            $stack2 = clone $stack;
+            $this->assertEquals($stack2->count(), 2);
+            $this->assertEquals($stack2->pop(), 3);
+        }
+
         // test count and getStackSize()
 
         public function test_count()
@@ -836,9 +849,31 @@
         }
     }
 
+    class NotificationsTesting extends TestingAdapter {
+
+        public function test_simple()
+        {
+            $notify = new Notifications();
+            $notify->push("No error occured", 3);
+            $notify->push("Deprecation Warning", 2);
+            $this->assertEquals($notify->count(), 2);
+
+            $notify->pop();
+            $notify->push("Fatal error. Abort", 1);
+            foreach ($notify->iterate() as $key => $value)
+            {
+                $this->assertTrue(is_string($value[1]));
+            }
+            $this->assertEquals($notify->count(), 2);
+        }
+    }
+
     $test = new FunctionsTesting();
     $test->run();
 
     $test = new StackTesting();
+    $test->run();
+
+    $test = new NotificationsTesting();
     $test->run();
 ?>

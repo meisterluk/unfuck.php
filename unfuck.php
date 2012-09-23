@@ -271,6 +271,17 @@
         }
 
         //
+        // Copy the stack.
+        // Create a new Stack instance with the same properties.
+        //
+        // @return Stack  the copy
+        //
+        public function copy()
+        {
+            return $this->__clone();
+        }
+
+        //
         // Get the size of the current stack.
         // Alias for getStackSize.
         //
@@ -842,6 +853,21 @@
         }
 
         //
+        // The magic __clone method (Object cloning).
+        //
+        // @return Stack  an cloned Stack instance.
+        //
+        public function __clone()
+        {
+            $stack = new Stack($this->max_size, $this->order);
+            $stack->elements = clone $this->elements;
+            $stack->counter = clone $this->counter;
+            $stack->name = clone $this->name;
+
+            return $stack;
+        }
+
+        //
         // String representation of the stack.
         // Magic method __tostring.
         //
@@ -896,7 +922,15 @@
     //
     class Notifications
     {
-        protected $msgs = array();
+        protected $msgs;
+
+        //
+        // Constructor.
+        //
+        public function __construct()
+        {
+            $this->msgs = new Notifications();
+        }
 
         //
         // Add message with associated class
@@ -908,7 +942,7 @@
         //
         public function push($msg, $class=3)
         {
-            $this->msgs[] = array($msg, $class);
+            $this->msgs->push(array($msg, $class));
             return false;
         }
 
@@ -919,7 +953,7 @@
         //
         public function pop()
         {
-            return array_pop($this->msgs);
+            return $this->msgs->pop();
         }
 
         //
@@ -929,7 +963,7 @@
         //
         public function count()
         {
-            return count($this->msgs);
+            return $this->msgs->count();
         }
 
         //
@@ -937,7 +971,7 @@
         //
         public function reset()
         {
-            $this->msgs = array();
+            $this->msgs->clear();
         }
 
         //
@@ -968,7 +1002,7 @@
         public function filter($min=3, $gt=true)
         {
             $result = array();
-            foreach ($this->msgs as $value)
+            foreach ($this->msgs->iterate() as $value)
             {
                 if (($gt && $value[1] >= $min) || (!$gt && $value[1] <= $min))
                     $result[] = $value;
@@ -1007,10 +1041,10 @@
         // @return array of messages
         //
         public function iterate()
-        {
-            usort($this->msgs, array(&$this, '_cmp'));
 
-            return $this->msgs;
+            $this->msgs->sort(array(&$this, '_cmp'));
+
+            return $this->msgs->iterate();
         }
 
         //
@@ -1338,7 +1372,7 @@
         //
         // Add a new filter.
         //
-        // @param name mixed  the parameter 
+        // @param name mixed  the parameter
         // @param string|int filter  a filter specifier
         // @param array|NULL parameters  parameters to be supplied whenever
         //                               the filter is called
