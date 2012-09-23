@@ -540,7 +540,7 @@
         //
         // @param mixed value  the value to push
         //
-        public function pushElement()
+        public function pushElement($value)
         {
             if ($this->order == self::ORDER_STACK)
                 call_user_func_array(array($this, 'pushRev'),
