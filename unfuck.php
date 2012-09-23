@@ -678,19 +678,24 @@
         //
         // Slice the stack.
         //
+        // Note. If $length surpasses the border of the stack,
+        //       the length of the result will be smaller than $length
+        //
         // @param int offset  the offset for the slice
         // @param int|null length  length of return value or until end
         // @return array  array of sliced elements
         //
         public function slice($offset, $length=null)
         {
-            if ($length === null)
-                $elements = array_slice($this->elements, $offset);
-            else
-                $elements = array_slice($this->elements, $offset, $length);
-
             if ($this->order == self::ORDER_STACK)
-                $elements = array_reverse($elements, false);
+                $elements = array_reverse($this->elements, false);
+            else
+                $elements = $this->elements;
+
+            if ($length === null)
+                $elements = array_slice($elements, $offset);
+            else
+                $elements = array_slice($elements, $offset, $length);
 
             return $elements;
         }
