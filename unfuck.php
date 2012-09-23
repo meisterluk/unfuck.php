@@ -458,6 +458,8 @@
         //
         public function pop($count=1)
         {
+            if ($count === 0)
+                return;
             if ($this->counter < $count)
                 throw new UnderflowException('Popping too many arguments');
 
@@ -522,8 +524,8 @@
             {
                 $args = array_reverse(func_get_args());
                 $this->SOcheck('Failed to push values', count($args));
-                $array = array_merge($this->elements, $args);
-                $this->counter += count($array);
+                $this->elements = array_merge($this->elements, $args);
+                $this->counter += count($args);
 
             } else {
                 $this->SOcheck('Failed to push value', 1);
@@ -572,13 +574,13 @@
             if ($this->counter === 1)
                 return $this->elements[0];
 
-            $result = $this->elements[0];
             $elements = $this->elements;
             if ($this->order == self::ORDER_STACK)
                 $elements = array_reverse($elements);
 
+            $result = $elements[0];
             foreach (array_slice($elements, 1) as $value)
-                $result = $callback($result, $value);
+                $result = call_user_func($callback, $result, $value);
 
             return $result;
         }
