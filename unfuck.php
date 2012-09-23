@@ -184,7 +184,7 @@
     //   each method depending on its configuration. And remove the
     //   global variable to avoid global state.
     //
-    // @method __construct($max_size=self::INFINITY, $order=self::ORDER_LIST)
+    // @method __construct($max_size=self::INFINITE_SIZE, $order=self::ORDER_LIST)
     // @method chunk($size)
     // @method clear()
     // @method count()
@@ -217,7 +217,7 @@
     class Stack {
         const ORDER_LIST = 1;
         const ORDER_STACK = 2;
-        const INFINITY = -1;
+        const INFINITE_SIZE = -1;
 
         protected $max_size;
         protected $counter;
@@ -229,11 +229,11 @@
         // Constructor.
         //
         // @param int max_size  the maximum size of the stack
-        //                      (self::INFINITY for infinity)
+        //                      (self::INFINITE_SIZE for INFINITE_SIZE)
         // @param boolean order  The order slices of elements are returned
         //                       (either ORDER_STACK or ORDER_LIST)
         //
-        public function __construct($max_size=self::INFINITY,
+        public function __construct($max_size=self::INFINITE_SIZE,
                 $order=self::ORDER_LIST)
         {
             $this->max_size = $max_size;
@@ -292,7 +292,8 @@
         {
             $new = new Stack($this->max_size, $this->order);
             $diff = array_diff($this->iterate(), $stack->iterate());
-            $new->pushElement($diff);
+            if (!isEmpty($diff))
+                call_user_func_array(array($new, 'push'), $diff);
             return $new;
         }
 
@@ -354,14 +355,16 @@
         // Create a new stack with intersected elements between the
         // current stack and the stack provided as argument
         //
-        // @param Stack stack  the stack to compare with
+        // @param Stack|array stack  the stack or array to compare with
         // @return Stack  the stack with intersected elements
         //
         public function intersect($stack)
         {
             $new = new Stack($this->max_size, $this->order);
-            $diff = array_intersect($this->iterate(), $stack->iterate());
-            $new->addArray($diff);
+            $cmp_elements = is_array($stack) ? $stack : $stack->iterate();
+            $diff = array_intersect($this->iterate(), $cmp_elements);
+            if (!isEmpty($diff))
+                call_user_func_array(array($new, 'push'), $diff);
             return $new;
         }
 
@@ -390,11 +393,11 @@
         public function iterateFiltered($callback, $method='callback')
         {
             // Please remember that a callback might be an array
-            // (static method). That why $method exists.
+            // (static method). That's why $method exists.
             if ($method === 'callback')
-                return array_diff($callback, $this->iterate());
+                return array_filter($this->iterate(), $callback);
 
-            return array_filter($this->iterate(), $callback);
+            return array_values(array_diff($this->iterate(), $callback));
         }
 
         //
@@ -445,7 +448,7 @@
             if ($this->order == self::ORDER_STACK)
                 $elements = array_reverse($elements, false);
 
-            $this->elements = array_slice($this->elements, 0, -$count);
+            $this->elements = array_slice($this->elements, 0, -$count, false);
             $this->counter -= $count;
 
             if ($count == 1)
@@ -713,7 +716,7 @@
         //
         protected function SOcheck($msg, $additionals=0)
         {
-            if ($this->max_size == self::INFINITY)
+            if ($this->max_size == self::INFINITE_SIZE)
                 return;
 
             $size = $this->counter + (int)$additionals;
@@ -802,6 +805,9 @@
             {
                 if (is_string($element))
                     $elements[$key] = '"'.$element.'"';
+                else
+                    $elements[$key] = str_replace("\n", ' ',
+                        var_export($element, true));
             }
 
             $str = '[ ';
