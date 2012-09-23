@@ -716,9 +716,9 @@
         public function splice($start, $end, $replacements)
         {
             if ($start < 0)
-                $start = count($this->elements) - $start;
+                $start = count($this->elements) + $start;
             if ($end < 0)
-                $end = count($this->elements) - $end;
+                $end = count($this->elements) + $end;
 
             if ($start === $end)
                 return $this->replace($start, $replacements[0]);
@@ -736,9 +736,14 @@
         // Sort elements of the stack. In-place method.
         // Note. You might wanna use iterate() or pop() afterwards.
         //
-        public function sort()
+        // @param callback cmp_func  a custom comparison function
+        //
+        public function sort($cmp_func=NULL)
         {
-            sort($this->elements);
+            if ($cmp_func === NULL)
+                sort($this->elements);
+            else
+                usort($this->elements, $cmp_func);
         }
 
         //
@@ -794,7 +799,7 @@
         // @param int sort_flags  Flags defining comparison configuration
         //                        see also [0]
         //
-        public function unique($sort_flags)
+        public function unique($sort_flags=SORT_REGULAR)
         {
             $this->elements = array_unique($this->elements, $sort_flags);
             $this->counter = count($this->elements);
