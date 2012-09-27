@@ -278,7 +278,7 @@
         //
         public function copy()
         {
-            return $this->__clone();
+            return clone $this();
         }
 
         //
@@ -860,9 +860,9 @@
         public function __clone()
         {
             $stack = new Stack($this->max_size, $this->order);
-            $stack->elements = clone $this->elements;
-            $stack->counter = clone $this->counter;
-            $stack->name = clone $this->name;
+            $stack->elements = $this->elements;
+            $stack->counter = $this->counter;
+            $stack->name = $this->name;
 
             return $stack;
         }
@@ -929,7 +929,7 @@
         //
         public function __construct()
         {
-            $this->msgs = new Notifications();
+            $this->msgs = new Stack();
         }
 
         //
@@ -982,7 +982,7 @@
         // @param array msg2  the second message
         // @return int  an integer indicating difference of msg1 and msg2
         //
-        static protected function _cmp($msg1, $msg2)
+        static public function _cmp($msg1, $msg2)
         {
             if ($msg1[1] < $msg2[1])
                 return -1;
@@ -1041,8 +1041,8 @@
         // @return array of messages
         //
         public function iterate()
-
-            $this->msgs->sort(array(&$this, '_cmp'));
+        {
+            $this->msgs->sort(array($this, '_cmp'));
 
             return $this->msgs->iterate();
         }

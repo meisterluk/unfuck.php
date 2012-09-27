@@ -321,7 +321,7 @@
         }
 
         // test diff
-        
+
         public function test_diff()
         {
             $stack1 = new Stack();
@@ -862,7 +862,9 @@
             $notify->push("Fatal error. Abort", 1);
             foreach ($notify->iterate() as $key => $value)
             {
-                $this->assertTrue(is_string($value[1]));
+                list($errmsg, $class) = $value;
+                $this->assertTrue(is_string($errmsg));
+                $this->assertTrue(is_int($class));
             }
             $this->assertEquals($notify->count(), 2);
         }
