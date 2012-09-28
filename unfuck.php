@@ -161,6 +161,11 @@
         return false;  // eg. object
     }
 
+
+    // Custom exceptions
+
+    class UndefinedValueException extends Exception { }
+
     //
     // A basic stack implementation.
     // Heavily inspired by python's list datatype.
@@ -180,6 +185,9 @@
     //   In general you will consider listorder to be more intuitive.
     //
     // TODO:
+    //   return $this for public methods where possible
+    //
+    // TODO:
     //   Probably it's a better idea to provide order as parameter for
     //   each method depending on its configuration. And remove the
     //   global variable to avoid global state.
@@ -191,6 +199,7 @@
     // @method diff($stack)
     // @method equals($stack)
     // @method exists($value)
+    // @method getName()
     // @method getStackSize()
     // @method index($index)
     // @method intersect($stack)
@@ -338,6 +347,16 @@
         }
 
         //
+        // Get the name assigned to this Stack.
+        //
+        // @return string  the name you assigned to this stack
+        //
+        public function getName()
+        {
+            return (string)$this->name;
+        }
+
+        //
         // Get the size of the current stack.
         // Ie. the number of elements on the stack
         //
@@ -435,7 +454,7 @@
         public function pad($size, $value)
         {
             if ($size < 0)
-                throw InvalidArgumentException(
+                throw new InvalidArgumentException(
                     'size argument of pad(size, value) must be positive'
                 );
 
@@ -922,6 +941,11 @@
     //
     class Notifications
     {
+        const NOTE = 0;
+        const INFO = 1;
+        const WARN = 2;
+        const ERROR = 3;
+
         protected $msgs;
 
         //
@@ -982,7 +1006,7 @@
         // @param array msg2  the second message
         // @return int  an integer indicating difference of msg1 and msg2
         //
-        static public function _cmp($msg1, $msg2)
+        static protected function _class_cmp($msg1, $msg2)
         {
             if ($msg1[1] < $msg2[1])
                 return -1;
@@ -999,7 +1023,7 @@
         // @param int gt  test for class >= min on true, <= on false
         // @return array  an array with array(msg, class) values
         //
-        public function filter($min=3, $gt=true)
+        public function filter($min=WARN, $gt=true)
         {
             $result = array();
             foreach ($this->msgs->iterate() as $value)
@@ -1023,8 +1047,12 @@
         protected function translateClasses($classes=NULL)
         {
             if ($classes === NULL)
-                $classes = array(0 => 'note', 1 => 'alert',
-                    2 => 'warning', 3 => 'error');
+                $classes = array(
+                    self::NOTE => 'note',
+                    self::INFO => 'info',
+                    self::WARN => 'warn',
+                    self::ERROR => 'error'
+                );
 
             foreach ($this->msgs as $key => $value)
             {
@@ -1042,7 +1070,7 @@
         //
         public function iterate()
         {
-            $this->msgs->sort(array($this, '_cmp'));
+            $this->msgs->sort(array($this, '_class_cmp'));
 
             return $this->msgs->iterate();
         }
@@ -1093,32 +1121,46 @@
     // Note. This is not a pure singleton class. It still allows instantiation,
     //       but a singleton can be accessed by the getInstance() method
     // Note. This class does not support arrays as parameters. To process
-    //       one-dimensional arrays, you can set the array to be a context.
+    //       one-dimensional arrays, you can set the array to be a context,
+    //       but input is supposed to be flat (not hierarchical) here.
     // Note. In current implementation, if variable occurs in multiple contexts
-    //       the first one in $contexts is taken.
+    //       the first $contexts containing it is taken.
     //
-    // Interface:
+    // Hooks
+    //   The Sanitizor provides several hooks. These are defined states reached
+    //   during the evaluation of a parameter. You might want to inherit this
+    //   class and override the hooks with the subclass to your desired behavior.
     //
-    //     @method __construct($options=NULL)
-    //     @method __get($name)
-    //     @method getInstance($options=NULL)
     //
-    //     @method setUseDefaults($use_defaults)
-    //     @method getUseDefaults()
-    //     @method setUndefinedValue($undefined_value)
-    //     @method getUndefinedValue()
-    //     @method setUndefinedDefault($undefined_default)
-    //     @method getUndefinedDefault()
-    //     @method clearContexts()
-    //     @method clearRules()
-    //     @method clearFilters()
+    // Public API:
     //
-    //     @method addContext($array, $id=NULL, $overwrite=true)
-    //     @method removeContext($name)
-    //     @method addRule($name, $types=NULL, $default=NULL, $overwrite=true)
-    //     @method addFilter($filter, $parameters=NULL)
-    //     @method getValidity($name)
-    //     @method getParameter($name)
+    // @method __construct($options=NULL)
+    // @method getInstance($options=NULL)
+    //
+    // @method setUseDefaults($use_defaults)
+    // @method getUseDefaults()
+    // @method setName($name)
+    // @method getName()
+    //
+    // @method preProcessingHook($identifier, $value)
+    // @method postProcessingHook($identifier, $value)
+    // @method undefinedValueHook($identifier)
+    // @method invalidValueHook($identifier, $value)
+    // @method noDefaultValueHook($identifier, $value)
+    //
+    // @method addContext($array, $id=NULL, $overwrite=true)
+    // @method removeContext($identifier)
+    // @method clearContexts()
+    //
+    // @method addFilter($identifier, $filter, $parameters=NULL)
+    // @method removeFilter($identifier)
+    // @method clearFilters()
+    //
+    // @method addRule($identifier, $types=NULL, $default=NULL, $overwrite=true)
+    // @method getValidity($identifier)
+    // @method getParameter($identifier)
+    // @method __get($identifier)
+    // @method clearRules()
     //
     class Sanitizor
     {
@@ -1126,6 +1168,10 @@
         const FILTER_UPPER              = 2;
         const FILTER_BETWEEN            = 4;
         const FILTER_MEMBER             = 8;
+        const FILTER_MAXLENGTH          = 16;
+        const FILTER_TRIM               = 32;
+        const FILTER_TITLECASE          = 64;
+        const FILTER_CAMELCASE          = 128;
 
         const TYPE_NULL                 = 1;
         const TYPE_INTEGER              = 2;
@@ -1153,25 +1199,14 @@
         protected $default_char         = '0';
         protected $default_alnum        = '0';
         protected $default_alpha        = 'A';
-        protected $default_print        = ' ';
+        protected $default_print        = '!';
         protected $default_whitespace   = ' ';
 
         // turn on or off default values
         // if value is given, but invalid
-        //     and use_defaults=true, $rules[2] is returned
-        //     and use_defaults=false, self::DEFAULT_VALUE is returned
+        //     and use_defaults=true, the default value is returned
+        //     and use_defaults=false, invalidValueHook gets called
         protected $use_defaults = true;
-
-        // returned if value is invalid, use_defaults=true
-        // and $rules[2] does not exist
-        protected $undefined_default = NULL;
-
-        // returned if value does not exist in any context
-        // remove definition if Exception for missing property should be thrown
-        #protected $undefined_value = NULL;
-
-        // returned if value is invalid, but no default value shall be used
-        const DEFAULT_VALUE = NULL;
 
         // array containing rules.
         // array[$identifier] = (bitfield $type, $default);
@@ -1188,22 +1223,32 @@
         // singleton
         private static $_instance;
 
-        // logbook -- Notifications instance
+        // name for more debugging information
+        public $name;
+
+        // Notifications instance
         public $log;
 
         //
         // Constructor.
         //
-        // @param boolean use_defaults shall I use default values?
+        // The following keys can be provided:
+        //   {use_defaults, name, log, contexts}
+        // log defaults to a new Notifications instance.
+        // contexts defaults to a set of superglobals.
+        // Will not write to log if unknown key is given.
+        //
+        // @param array options  An associative array for configuration
         //
         public function __construct($options=NULL)
         {
             if (isset($options['use_defaults']))
                 $this->setUseDefaults($options['use_defaults']);
-            if (isset($options['undefined_value']))
-                $this->setUndefinedValue($options['undefined_value']);
-            if (isset($options['undefined_default']))
-                $this->setUndefinedDefault($options['undefined_default']);
+            else
+                $this->setUseDefaults(true);
+            if (isset($options['name']))
+                $this->setName($options['name']);
+
             if (isset($options['log']))
                 $this->log = $options['log'];
             else
@@ -1216,8 +1261,24 @@
                     &$_SERVER, &$_REQUEST, &$_FILES,
                     &$_COOKIE, &$_SESSION, &$_ENV
                 );
+
+            $whitelist = array('use_defaults', 'log', 'name', 'contexts');
+            foreach ($options as $key => $value)
+            {
+                if (array_key_exists($key, $whitelist))
+                {
+                    $msg = 'Provided key "%s" was not expected';
+                    $this->log->push(sprintf($msg, $key), 2);
+                }
+            }
         }
 
+        //
+        // Get a singleton instance.
+        //
+        // @param array options  provide parameters for constructor
+        // @return Sanitizor  a possibly new instance of Sanitizor
+        //
         static public function getInstance($options=NULL)
         {
             if (!isset(self::$_instance))
@@ -1228,60 +1289,158 @@
             return self::$_instance;
         }
 
+        //
+        // Use default value?
+        //
+        // @param bool use_defaults  value to set
+        // @return Sanitizor  this
+        //
         public function setUseDefaults($use_defaults)
         {
             $this->use_defaults = (bool)$use_defaults;
             return $this;
         }
 
+        //
+        // Return setting for "Use default value?"
+        //
+        // @return bool  setting
+        //
         public function getUseDefaults()
         {
             return $this->use_defaults;
         }
 
-        public function setUndefinedValue($undefined_value)
+        //
+        // Set the name for this Sanitizor.
+        // Will be used for debugging purposes.
+        //
+        // @param string name  the name to set object to
+        // @return Sanitizor  this
+        //
+        public function setName($name)
         {
-            $this->undefined_value = $undefined_value;
+            $this->name = $name;
             return $this;
         }
 
-        public function getUndefinedValue()
+        //
+        // Get name of the current Sanitizor.
+        //
+        // @return string  the name of the object
+        //
+        public function getName()
         {
-            if (!isset($this->undefined_value))
-                return $this->undefined_value;
-            else
-                return NULL;
+            return $this->name;
         }
 
-        public function setUndefinedDefault($undefined_default)
+        // Hooks
+
+        //
+        // Hook after the value was found in some context,
+        // but before its validity gets checked.
+        //
+        // @param string identifier  the identifier requested
+        // @param mixed value  the actual value given in the context
+        // @return array  an array($identifier, $value)
+        //
+        public function preProcessingHook($identifier, $value)
         {
-            $this->undefined_default = $undefined_default;
-            return $this;
+            return array($identifier, $value);
         }
 
-        public function getUndefinedDefault()
+        //
+        // Hook invoked after applying filters and
+        // before returning $value to user.
+        //
+        // @param string identifier  the identifier requested
+        // @param mixed value  the actual value given in the context
+        // @return mixed  $identifier
+        //
+        public function postProcessingHook($identifier, $value)
         {
-            return $this->undefined_default;
+            return $identifier;
         }
 
-        public function clearContexts()
+        //
+        // Hook called when $identifier could not be found in any context.
+        //
+        // @param string identifier  the identifier requested
+        // @return mixed  the value returned to the user
+        //
+        public function undefinedValueHook($identifier)
         {
-            $this->contexts = array();
-            return $this;
+            $msg = 'Value is undefined in Sanitzor contexts';
+            throw new UndefinedValueException($msg);
+            return NULL;
         }
 
-        public function clearRules()
+        //
+        // Hook invoked when value is invalid and defaults shall not
+        // be used.
+        //
+        // @param string identifier  the identifier requested
+        // @param mixed value  the value to be returned
+        // @return mixed  the value returned to the user
+        //
+        public function invalidValueHook($identifier, $value)
         {
-            $this->rules = array();
-            return $this;
+            $msg = 'Value given for "'.$identifier.'" is invalid';
+            throw new UnexpectedValueException($msg);
+            return NULL;
         }
 
-        public function clearFilters()
+        //
+        // Even though we shall use default values according to the
+        // configuration, no default value was provided for this
+        // $identifier.
+        //
+        // @param string identifier  the identifier requested
+        // @param mixed value  the value to be returned
+        // @return mixed  the value returned to the user
+        //
+        public function noDefaultValueHook($identifier, $value)
         {
-            $this->filters = array();
-            return $this;
+            //$this->rules[$identifier]
+            // TODO
         }
 
+        //
+        // A type got specified as parameter which is unknown / invalid.
+        // Eg. can be used as a hook to write to a logfile
+        //
+        // @param string type  the type specified
+        //
+        protected function invalidTypeGiven($type)
+        {
+            $this->log->push('Invalid type given: '.print_r($type, true), 3);
+            $msg = 'Invalid type specifier "%s"';
+            throw new InvalidArgumentException(sprintf($msg, $type));
+        }
+
+        //
+        // An type got specified as parameter which is unknown / invalid.
+        // Eg. can be used as a hook to write to a logfile
+        //
+        // @param string type  the type specified
+        //
+        protected function invalidFilter($filter)
+        {
+            $this->log->push('Invalid filter given: '.print_r($type, true), 3);
+            return 0;
+        }
+
+
+
+
+
+
+
+
+
+
+
+/* TODO
         //
         // Add a context. Either store it with an identifier or by numerical
         // index (can be configured by id parameter).
@@ -1289,7 +1448,7 @@
         // @param array array  an associative array to search values in
         // @param mixed id  the associated id (set randomly, but unique)
         // @param boolean overwrite  if context exists, overwrite it?
-        // @return object $this
+        // @return Sanitizor  $this
         //
         public function addContext($array, $id=NULL, $overwrite=true)
         {
@@ -1309,7 +1468,7 @@
         // Remove a context by id.
         //
         // @param mixed id  the id to identify the context
-        // @return object  $this
+        // @return Sanitizor  this
         //
         public function removeContext($name)
         {
@@ -1318,10 +1477,65 @@
         }
 
         //
+        // Clear all contexts.
+        //
+        // @return Sanitizor  this
+        //
+        public function clearContexts()
+        {
+            $this->contexts = array();
+            return $this;
+        }
+
+        //
+        // Add a new filter.
+        //
+        // @param identifier mixed  the parameter
+        // @param string|int filter  a filter specifier
+        // @param array|NULL parameters  parameters to be supplied whenever
+        //                               the filter is called
+        // @return Sanitizor  this
+        //
+        public function addFilter($identifier, $filter, $parameters=NULL)
+        {
+            // TODO: evaluate when two filters cannot be applied at the same time
+            $filter = $this->processFilter($filter);
+            if (func_num_args() === 2)
+                $this->filters[$identifier] = array($filter);
+            else
+                $this->filters[$identifier] = array($filter, $parameters);
+
+            return $this;
+        }
+
+        //
+        // Remove all filters of the value $identifier.
+        //
+        // @param string identifier  the identifier to modify filters of
+        // @return Sanitizor  this
+        // 
+        public function removeFilter($identifier)
+        {
+            unset($this->filters[$identifier]);
+            return $this;
+        }
+
+        //
+        // Clear all filters.
+        //
+        // @return Sanitizor  this
+        //
+        public function clearFilters()
+        {
+            $this->filters = array();
+            return $this;
+        }
+
+        //
         // Return each bit of the given bitfield separately.
         // Example::
         //
-        //     php> _splitBitfield(0x110)
+        //     php > _splitBitfield(0x110)
         //     array(0x100, 0x10)
         //
         // @param int bitfield  the bitfield to read
@@ -1346,7 +1560,7 @@
         //
         // Add a rule.
         //
-        // @param string name  the parameter name to read and parse
+        // @param string identifier  the parameter identifier to read and parse
         // @param string|int types  the type(s) the parameter must have
         //                          can either be bitfield or comma-separated
         //                          list of types
@@ -1370,29 +1584,9 @@
         }
 
         //
-        // Add a new filter.
-        //
-        // @param name mixed  the parameter
-        // @param string|int filter  a filter specifier
-        // @param array|NULL parameters  parameters to be supplied whenever
-        //                               the filter is called
-        // @return object  $this
-        //
-        public function addFilter($filter, $parameters=NULL)
-        {
-            $filter = $this->processFilter($filter);
-            if (func_num_args() === 1)
-                $this->filters[] = array($filter);
-            else
-                $this->filters[] = array($filter, $parameters);
-
-            return $this;
-        }
-
-        //
         // Process a list of types given as string.
         //
-        // @param string types  types specifier
+        // @param string flags  a string several types
         // @param string delimiter  the delimiter used
         // @return int  the corresponding flag constant
         //
@@ -1452,21 +1646,8 @@
                 case 'ws': case 'white': case 'whitespace':
                     return self::TYPE_WHITESPACE;
                 default:
-                    return $this->invalidType($type);
+                    return $this->invalidTypeGiven($type);
             }
-        }
-
-        //
-        // Will be called whenever an invalid type is given.
-        // Eg. can be used as a hook to write to a logfile
-        //
-        // @param string type  the type identifier name
-        // @param boolean  returns always false
-        //
-        protected function invalidType($type)
-        {
-            $this->log->push('Invalid type given: '.print_r($type, true), 3);
-            return 0;
         }
 
         //
@@ -1495,19 +1676,6 @@
                 default:
                     return $this->invalidFilter($filter);
             }
-        }
-
-        //
-        // Will be called whenever an invalid filter is given.
-        // Eg. can be used as a hook to write to a logfile
-        //
-        // @param string filter  the filter identifier name
-        // @param boolean  returns always false
-        //
-        protected function invalidFilter($filter)
-        {
-            $this->log->push('Invalid filter given: '.print_r($type, true), 3);
-            return 0;
         }
 
         //
@@ -1739,10 +1907,9 @@
         //
         protected function filterLower($value, $parameters=NULL)
         {
-            if (function_exists('mb_strtolower'))
-                return array(true, mb_strtolower($value));
-            else
-                return array(true, strtolower($value));
+            if (!is_string($value))
+                return array(false, $value);
+            return array(true, strtolower($value));
         }
 
         //
@@ -1754,10 +1921,9 @@
         //
         protected function filterUpper($value, $parameters=NULL)
         {
-            if (function_exists('mb_strtoupper'))
-                return array(true, mb_strtoupper($value));
-            else
-                return array(true, strtoupper($value));
+            if (!is_string($value))
+                return array(false, $value);
+            return array(true, strtoupper($value));
         }
 
         //
@@ -1769,6 +1935,8 @@
         //
         protected function filterBetween($value, $parameters=NULL)
         {
+            if (!is_numeric($value))
+                return array(false, $value);
             if (!($parameters[0] < $value && $value < $parameters[1]))
                 return array(false, $value);
             return array(true, $value);
@@ -1786,6 +1954,64 @@
             if (!in_array($value, $parameters))
                 return array(false, $value);
             return array(true, $value);
+        }
+
+        //
+        // Apply filter 'max length'.
+        //
+        // @param mixed value  the value to filter
+        // @param array parameters  parameters to use
+        // @return array  array(is_valid, filtered_value)
+        //
+        protected function filterMaxLength($value, $parameters=NULL)
+        {
+            if (!is_string($value))
+                return array(false, $value);
+            if (strlen($value) > $parameters[0])
+                return array(true, substr($value, 0, $parameters[0]));
+            return array(true, $value);
+        }
+
+        //
+        // Apply filter 'Trim'.
+        //
+        // @param mixed value  the value to filter
+        // @param array parameters  parameters to use
+        // @return array  array(is_valid, filtered_value)
+        //
+        protected function filterTrim($value, $parameters=NULL)
+        {
+            if (!is_string($value))
+                return array(false, $value);
+            return array(true, trim($value));
+        }
+
+        //
+        // Apply filter 'Title Case'.
+        //
+        // @param mixed value  the value to filter
+        // @param array parameters  parameters to use
+        // @return array  array(is_valid, filtered_value)
+        //
+        protected function filterTitleCase($value, $parameters=NULL)
+        {
+            if (!is_string($value))
+                return array(false, $value);
+            return array(true, TitleCase($value));
+        }
+
+        //
+        // Apply filter 'CamelCase'.
+        //
+        // @param mixed value  the value to filter
+        // @param array parameters  parameters to use
+        // @return array  array(is_valid, filtered_value)
+        //
+        protected function filterCamelCase($value, $parameters=NULL)
+        {
+            if (!is_string($value))
+                return array(false, $value);
+            return array(true, camelCase((string)$value));
         }
 
         //
@@ -1849,7 +2075,11 @@
                 self::FILTER_LOWER => 'filterLower',
                 self::FILTER_UPPER => 'filterUpper',
                 self::FILTER_BETWEEN => 'filterBetween',
-                self::FILTER_MEMBER => 'filterMember'
+                self::FILTER_MEMBER => 'filterMember',
+                self::FILTER_MAXLENGTH => 'filterMaxLength',
+                self::FILTER_TRIM => 'filterTrim',
+                self::FILTER_TITLECASE => 'filterTitleCase',
+                self::FILTER_CAMELCASE => 'filterCamelCase'
             );
             foreach ($filters as $filter)
             {
@@ -1971,6 +2201,17 @@
         }
 
         //
+        // Clear all rules.
+        //
+        // @return Sanitizor  this
+        //
+        public function clearRules()
+        {
+            $this->rules = array();
+            return $this;
+        }
+
+        //
         // Magic method.
         //
         // @param string name  the parameter to search for or method name
@@ -1985,5 +2226,6 @@
             else
                 return $this->{$name};
         }
+*/
     }
 ?>

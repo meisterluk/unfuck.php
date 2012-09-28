@@ -1,6 +1,8 @@
 <?php
     require_once('unfuck.php');
 
+    // TODO: rename "test_[a-z]" to "test\U\1"
+
     class TestingAdapter {
 
         public function run()
@@ -870,6 +872,339 @@
         }
     }
 
+    class TestSanitizor extends Sanitizor
+    {
+        public $preProcessingHook = false;
+        public $postProcessingHook = false;
+        public $undefinedValueHook = false;
+        public $invalidValueHook = false;
+        public $noDefaultValueHook = false;
+
+        public function preProcessingHook($identifier, $value)
+        {
+            $this->preProcessingHook = true;
+            return NULL;
+        }
+
+        public function postProcessingHook($identifier, $value)
+        {
+            $this->postProcessingHook = true;
+            return NULL;
+        }
+
+        public function undefinedValueHook($identifier)
+        {
+            $this->undefinedValueHook = true;
+            return NULL;
+        }
+
+        public function invalidValueHook($identifier, $value)
+        {
+            $this->invalidValueHook = true;
+            return NULL;
+        }
+
+        public function noDefaultValueHook($identifier, $value)
+        {
+            $this->noDefaultValueHook = true;
+            return NULL;
+        }
+
+        public function getLog()
+        {
+            return $this->log;
+        }
+    }
+
+    class SanitizorTesting extends TestingAdapter {
+
+        public function test_simple()
+        {
+            $sani = new TestSanitizor();
+            $sani->addContext(array(
+                'name' => 'foobar',
+                'counter' => 3
+            ));
+            $sani->addRule('name', Sanitizor::TYPE_STRING, 'Rasmus');
+            $sani->addRule('counter', Sanitizor::TYPE_INTEGER, 0);
+            $sani->addFilter('name', 'upper');
+
+            $this->assertEquals($sani->getParameter('name'), 'FOOBAR');
+        }
+
+        // test Constructor
+
+        public function test_constructor()
+        {
+            $sani = new TestSanitizor(array('name' => 'MySanitizor'));
+            $this->assertEquals($sani->getName(), 'MySanitizor');
+
+            $notify = new Notifications();
+            $sani = new TestSanitizor(array('log' => $notify));
+            $this->assertEquals($sani->getLog(), $notify);
+
+            $contexts = array(array(1 => 2, 'mode' => 'sanitization'), array());
+            $sani = new TestSanitizor(array('contexts' => $contexts));
+            $sani->addRule(1, Sanitizor::TYPE_INTEGER, 3);
+            $this->assertEquals($sani->getParameter(1), 2);
+        }
+
+        public function test_constructorUseDefaults()
+        {
+            $sani = new TestSanitizor(array('use_defaults' => false));
+            $sani->addContext(array('mode' => 3));
+            $sani->addRule('mode', Sanitizor::TYPE_INTEGER, 42);
+
+            $this->assertTrue($sani->getParameter('mode'), 3);
+        }
+
+        // test getInstance
+
+        public function test_getInstance()
+        {
+            $sani1 = Sanitizor::getInstance();
+            $sani2 = Sanitizor::getInstance();
+            $sani3 = Sanitizor::getInstance();
+
+            $sani1->setName('HelloWorld1');
+            $sani2->setName('HelloWorld2');
+            $sani3->setName('HelloWorld3');
+
+            $this->assertEquals($sani1, $sani2, $sani3);
+            $this->assertEquals($sani1->getName(), $sani2->getName(),
+                                $sani3->getName());
+
+            unset($sani1);
+
+            $sani = Sanitizor::getInstance(array('name' => 'MYsanitizor'));
+            $this->assertEquals($sani->getName(), 'MYsanitizor');
+        }
+
+        // test setUseDefaults
+
+        public function test_setUseDefaults()
+        {
+            $sani = new TestSanitizor();
+            $sani->setUseDefaults(false);
+            $this->assertEquals($sani->getUseDefaults(), false);
+            $sani->setUseDefaults(true);
+            $this->assertEquals($sani->getUseDefaults(), true);
+        }
+
+        // test setName
+
+        public function test_setName()
+        {
+            $sani = new TestSanitizor(array('name' => 'MySanitizor'));
+            $this->assertEquals($sani->getName(), 'MySanitizor');
+            $sani->setName('CustomSanitizor');
+            $this->assertEquals($sani->getName(), 'CustomSanitizor');
+        }
+
+        // test hooks
+
+        public function test_processingHook()
+        {
+            $sani = new TestSanitizor();
+
+            $this->assertFalse($sani->preprocessingHook);
+            $this->assertFalse($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+
+            $sani->addContext(array('mode' => 3));
+            $sani->addRule('mode', Sanitizor::TYPE_INTEGER, 42);
+            $this->assertEquals($sani->getParameter('mode'), 3);
+
+            $this->assertTrue($sani->preprocessingHook);
+            $this->assertTrue($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+        }
+
+        public function test_undefinedValueHook()
+        {
+            $sani = new TestSanitizor();
+
+            $this->assertFalse($sani->preprocessingHook);
+            $this->assertFalse($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+
+            $sani->addRule('mode', Sanitizor::TYPE_INTEGER, 42);
+            $this->assertEquals($sani->getParameter('mode'), 3);
+
+            $this->assertTrue($sani->preprocessingHook);
+            $this->assertTrue($sani->postprocessingHook);
+            $this->assertTrue($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+        }
+
+        public function test_invalidValueHook()
+        {
+            $sani = new TestSanitizor(array('use_defaults' => false));
+
+            $this->assertFalse($sani->preprocessingHook);
+            $this->assertFalse($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+
+            $sani->addContext(array('mode' => '.3'));
+            $sani->addRule('mode', Sanitizor::TYPE_INTEGER, 42);
+            $this->assertEquals($sani->getParameter('mode'), NULL);
+
+            $this->assertTrue($sani->preprocessingHook);
+            $this->assertTrue($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertTrue($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+        }
+
+        public function test_noDefaultValueHook()
+        {
+            $sani = new TestSanitizor(array('use_defaults' => true));
+
+            $this->assertFalse($sani->preprocessingHook);
+            $this->assertFalse($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertFalse($sani->noDefaultValueHook);
+
+            $sani->addContext(array('mode' => '.3'));
+            $sani->addRule('mode', Sanitizor::TYPE_INTEGER, 42);
+            $this->assertEquals($sani->getParameter('mode'));
+
+            $this->assertTrue($sani->preprocessingHook);
+            $this->assertTrue($sani->postprocessingHook);
+            $this->assertFalse($sani->undefinedValueHook);
+            $this->assertFalse($sani->invalidValueHook);
+            $this->assertTrue($sani->noDefaultValueHook);
+        }
+
+        // test addContext
+
+        public function test_addContext()
+        {
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'));
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x1234);
+
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'));
+            $sani->addContext(array('mode' => '0x2345'));
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x1234);
+
+            $sani = new TestSanitizor();
+            $sani->addContext(array());
+            $sani->addContext(array());
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0xCAFE);
+
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'), 1);
+            $sani->addContext(array('mode' => '0x2345'), 0);
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x2345);
+
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'), 0, true);
+            $sani->addContext(array('mode' => '0x2345'), 0, true);
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x2345);
+
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'), NULL, true);
+            $sani->addContext(array('mode' => '0x2345'), NULL, true);
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x1234);
+        }
+
+        public function test_removeContext()
+        {
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'), 0);
+            $sani->addContext(array('mode' => '0x2345'), 1);
+            $sani->removeContext(0);
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x2345);
+
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'), 0, true);
+            $sani->addContext(array('mode' => '0x2345'), 0, true);
+            $sani->removeContext(0);
+            $sani->addContext(array('mode' => '0x4567'));
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x4567);
+            $sani->addContext(array('mode' => '0x5678'));
+            $sani->removeContext(1);
+            $this->assertEquals($sani->getParameter('mode'), 0x4567);
+        }
+
+        public function test_clearContexts()
+        {
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => '0x1234'));
+            $sani->addContext(array('mode' => '0x2345'));
+            $sani->clearContexts();
+            $sani->addContext(array('mode' => '0x3456'), 'foobar');
+            $sani->addRule('mode', Sanitizor::TYPE_HEX, 0xCAFE);
+            $this->assertEquals($sani->getParameter('mode'), 0x3456);
+        }
+
+        public function test_addFilter()
+        {
+            $sani = new TestSanitizor();
+            $sani->addContext(array('mode' => 'sani-tizAtion', 'num' => 8));
+            $sani->addRule('mode', Sanitizor::TYPE_STRING, '_');
+
+            $sani->addFilter('mode', self::FILTER_LOWER);
+            $this->assertEquals($sani->getParameter('mode'), 'sani-tization');
+            $sani->addFilter('num', self::FILTER_MEMBER, array('sani-tizAtion'));
+            $this->assertEquals($sani->getParameter('mode'), 'sani-tization');
+
+
+
+
+
+
+            $sani->addFilter('mode', self::FILTER_UPPER);
+            $msgs = $sani->getLog()->filter(Notifications::INFO);
+            $this->assertTrue(count($msgs) > 0);
+
+            $sani->addFilter('mode', self::FILTER_UPPER);
+            $this->assertEquals($sani->getParameter('mode'), 'SANI-TIZATION');
+
+            $sani->addFilter('num', self::FILTER_BETWEEN, array(3, 9));
+            $this->assertEquals($sani->getParameter('num'), 8);
+
+            $sani->addFilter('num', self::FILTER_MEMBER, array(6, 8));
+            $this->assertEquals($sani->getParameter('num'), 8);
+
+            $sani->addFilter('mode', self::FILTER_MEMBER);
+            $sani->addFilter('mode', self::FILTER_MAXLENGTH);
+            $sani->addFilter('mode', self::FILTER_TRIM);
+            $sani->addFilter('mode', self::FILTER_TITLECASE);
+            $sani->addFilter('mode', self::FILTER_CAMELCASE);
+        }
+    // @method addFilter($identifier, $filter, $parameters=NULL)
+    // @method removeFilter($identifier)
+    // @method clearFilters()
+    //
+    // @method addRule($identifier, $types=NULL, $default=NULL, $overwrite=true)
+    // @method getValidity($identifier)
+    // @method getParameter($identifier)
+    // @method __get($identifier)
+    // @method clearRules()
+
+    }
+
     $test = new FunctionsTesting();
     $test->run();
 
@@ -877,5 +1212,8 @@
     $test->run();
 
     $test = new NotificationsTesting();
+    $test->run();
+
+    $test = new TestSanitizorTesting();
     $test->run();
 ?>
