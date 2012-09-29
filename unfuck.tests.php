@@ -1212,6 +1212,6 @@
     $test = new NotificationsTesting();
     $test->run();
 
-    $test = new TestSanitizorTesting();
+    $test = new SanitizorTesting();
     $test->run();
 ?>

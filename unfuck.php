@@ -1006,7 +1006,7 @@
         // @param array msg2  the second message
         // @return int  an integer indicating difference of msg1 and msg2
         //
-        static protected function _class_cmp($msg1, $msg2)
+        static public function _class_cmp($msg1, $msg2)
         {
             if ($msg1[1] < $msg2[1])
                 return -1;
@@ -1263,12 +1263,15 @@
                 );
 
             $whitelist = array('use_defaults', 'log', 'name', 'contexts');
-            foreach ($options as $key => $value)
+            if (!isEmpty($options))
             {
-                if (array_key_exists($key, $whitelist))
+                foreach ($options as $key => $value)
                 {
-                    $msg = 'Provided key "%s" was not expected';
-                    $this->log->push(sprintf($msg, $key), 2);
+                    if (array_key_exists($key, $whitelist))
+                    {
+                        $msg = 'Provided key "%s" was not expected';
+                        $this->log->push(sprintf($msg, $key), 2);
+                    }
                 }
             }
         }
