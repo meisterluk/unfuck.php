@@ -1,8 +1,6 @@
 <?php
     require_once('unfuck.php');
 
-    // TODO: rename "test_[a-z]" to "test\U\1"
-
     class TestingAdapter {
 
         public function run()
@@ -68,7 +66,7 @@
 
     class FunctionsTesting extends TestingAdapter {
 
-        public function test_e()
+        public function testE()
         {
             $cmp = array(
                 'test' => 'test',
@@ -153,7 +151,7 @@
 
     class StackTesting extends TestingAdapter {
 
-        public function test_basic()
+        public function testBasic()
         {
             $stack = new Stack();
             for ($i=0; $i<200; $i++)
@@ -168,39 +166,39 @@
             $this->assertEquals($stack->count(), 0);
         }
 
-        public static function clbk_smallerthree($value)
+        public static function clbkSmallerThree($value)
         {
             return $value < 3;
         }
 
-        public static function clbk_triple($value)
+        public static function clbkTriple($value)
         {
             return $value * 3;
         }
 
-        public static function clbk_and($a, $b)
+        public static function clbkAnd($a, $b)
         {
             return $a & $b;
         }
 
-        public static function clbk_xor($a, $b)
+        public static function clbkXor($a, $b)
         {
             return $a ^ $b;
         }
 
-        public static function clbk_minus($a, $b)
+        public static function clbkMinus($a, $b)
         {
             return $a - $b;
         }
 
-        public static function clbk_cmp($a, $b)
+        public static function clbkCmp($a, $b)
         {
             return strcmp($a[0], $b[0]);
         }
 
         // test constructor and push
 
-        public function test_max_size()
+        public function testMaxSize()
         {
             $stack = new Stack(2);
             $stack->push(1);
@@ -215,7 +213,7 @@
                 throw new UnexpectedValueException('I expected the stack to overflow');
         }
 
-        public function test_max_size2()
+        public function testMaxSize2()
         {
             $stack = new Stack(2);
             $stack->push(1);
@@ -233,7 +231,7 @@
                 throw new UnexpectedValueException('I expected the stack to overflow');
         }
 
-        public function test_order()
+        public function testOrder()
         {
             // Test, ORDER_LIST is default setting
             $stack = new Stack(Stack::INFINITE_SIZE);
@@ -245,7 +243,7 @@
             $this->assertEquals($array[2], 3);
         }
 
-        public function test_order2()
+        public function testOrder2()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3);
@@ -255,7 +253,7 @@
             $this->assertEquals($array[2], 3);
         }
 
-        public function test_order3()
+        public function testOrder3()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_STACK);
             $stack->push(1, 2, 3);
@@ -267,7 +265,7 @@
 
         // test chunk
 
-        public function test_chunk()
+        public function testChunk()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3, 4, 5, 6, 7);
@@ -275,7 +273,7 @@
             $this->assertEquals($stack->chunk(2), $expect);
         }
 
-        public function test_chunk2()
+        public function testChunk2()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_STACK);
             $stack->push(1, 2, 3, 4, 5, 6, 7);
@@ -285,7 +283,7 @@
 
         // test clear
 
-        public function test_clear()
+        public function testClear()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1);
@@ -297,7 +295,7 @@
 
         // test copy
 
-        public function test_copy()
+        public function testCopy()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1);
@@ -310,7 +308,7 @@
 
         // test count and getStackSize()
 
-        public function test_count()
+        public function testCount()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1);
@@ -324,7 +322,7 @@
 
         // test diff
 
-        public function test_diff()
+        public function testDiff()
         {
             $stack1 = new Stack();
             $stack2 = new Stack();
@@ -345,7 +343,7 @@
             $this->assertTrue($stack1->diff($stack2)->equals($ref));
         }
 
-        public function test_diff2()
+        public function testDiff2()
         {
             $stack1 = new Stack();
             $stack2 = new Stack();
@@ -357,7 +355,7 @@
             $this->assertTrue($stack1->diff($stack2)->equals($ref));
         }
 
-        public function test_diff3()
+        public function testDiff3()
         {
             $stack1 = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack1->push(1, 2, 3, 4, 5);
@@ -372,7 +370,7 @@
 
         // test equals and __toString
 
-        public function test_equals()
+        public function testEquals()
         {
             $stack1 = new Stack();
             $stack2 = new Stack();
@@ -394,7 +392,7 @@
 
         // test exists
 
-        public function test_exists()
+        public function testExists()
         {
             $stack = new Stack();
             $stack->push(1);
@@ -413,7 +411,7 @@
 
         // test index
 
-        public function test_index()
+        public function testIndex()
         {
             $stack = new Stack();
             $stack->push(1);
@@ -425,7 +423,7 @@
 
         // test intersect
 
-        public function test_intersect()
+        public function testIntersect()
         {
             $stack1 = new Stack();
             $stack2 = new Stack();
@@ -443,7 +441,7 @@
 
         // test iterate
 
-        public function test_iterate()
+        public function testIterate()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3);
@@ -455,7 +453,7 @@
             }
         }
 
-        public function test_order_iterate2()
+        public function testOrderIterate2()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_STACK);
             $stack->push(1, 2, 3);
@@ -464,7 +462,7 @@
 
         // test iterateFiltered
 
-        public function test_order_iterateFiltered()
+        public function testOrderIterateFiltered()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3, 4, 5, 6);
@@ -473,7 +471,7 @@
             $this->assertEquals($stack->iterateFiltered(array(3, 4), 'array'),
                 array(1, 2, 5, 6));
 
-            $callback = array($this, 'clbk_smallerthree');
+            $callback = array($this, 'clbkSmallerThree');
             $this->assertEquals(
                 $stack->iterateFiltered($callback, 'callback'),
                 array(1, 2)
@@ -482,11 +480,11 @@
 
         // test map
 
-        public function test_map()
+        public function testMap()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3, 4, 5);
-            $stack->map(array($this, 'clbk_triple'));
+            $stack->map(array($this, 'clbkTriple'));
 
             $ref = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $ref->push(3, 6, 9, 12, 15);
@@ -496,7 +494,7 @@
 
         // test pad
         
-        public function test_pad()
+        public function testPad()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2);
@@ -524,7 +522,7 @@
 
         // test pop and push
 
-        public function test_pop()
+        public function testPop()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3, 4);
@@ -553,7 +551,7 @@
 
         // test pushRev
 
-        public function test_pushRev()
+        public function testPushRev()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->pushRev(1);
@@ -578,7 +576,7 @@
 
         // test pushElement
 
-        public function test_pushElement()
+        public function testPushElement()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->pushElement(1, 2, 3, 4);
@@ -599,28 +597,28 @@
 
         // test reduce
 
-        public function test_reduce()
+        public function testReduce()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3, 4);
 
-            $result = $stack->reduce(array($this, 'clbk_and'));
+            $result = $stack->reduce(array($this, 'clbkAnd'));
             $this->assertEquals($result, 0);
 
-            $result = $stack->reduce(array($this, 'clbk_xor'));
+            $result = $stack->reduce(array($this, 'clbkXor'));
             $this->assertEquals($result, 4);
 
-            $result = $stack->reduce(array($this, 'clbk_minus'));
+            $result = $stack->reduce(array($this, 'clbkMinus'));
             $this->assertEquals($result, -8);
 
             $stack->order = Stack::ORDER_STACK;
-            $result = $stack->reduce(array($this, 'clbk_minus'));
+            $result = $stack->reduce(array($this, 'clbkMinus'));
             $this->assertEquals($result, -2);
         }
 
         // test replace
 
-        public function test_replace()
+        public function testReplace()
         {
             $stack = new Stack();
             $stack->push(1);
@@ -647,7 +645,7 @@
 
         // test replaceElements
 
-        public function test_replaceElements()
+        public function testReplaceElements()
         {
             $stack = new Stack();
             $stack->push(1);
@@ -666,7 +664,7 @@
 
         // test reverse
 
-        public function test_reverse()
+        public function testReverse()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3, 4);
@@ -679,7 +677,7 @@
 
         // test setName and __toString
 
-        public function test_setName()
+        public function testSetName()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->setName('MyStack');
@@ -689,7 +687,7 @@
 
         // test shift
 
-        public function test_shift()
+        public function testShift()
         {
             $stack = new Stack();
             $stack->push(1);
@@ -707,7 +705,7 @@
 
         // test shuffle
 
-        public function test_shuffle()
+        public function testShuffle()
         {
             $stack = new Stack();
             $stack->push(1);
@@ -723,7 +721,7 @@
 
         // test slice
 
-        public function test_slice()
+        public function testSlice()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(0, 1, 2, 3, 4, 5, 6, 7, 8);
@@ -748,7 +746,7 @@
 
         // test splice
 
-        public function test_splice()
+        public function testSplice()
         {
             $stack = new Stack();
             $stack->push(0);
@@ -769,7 +767,7 @@
             $this->assertTrue($stack->equals($ref));
         }
 
-        public function test_splice2()
+        public function testSplice2()
         {
             $stack = new Stack();
             $stack->push(0);
@@ -793,7 +791,7 @@
 
         // test sort
 
-        public function test_sort()
+        public function testSort()
         {
             $stack = new Stack();
             $stack->push(0);
@@ -808,7 +806,7 @@
             $this->assertEquals($stack->pop(), 0);
         }
 
-        public function test_sort2()
+        public function testSort2()
         {
             $stack = new Stack();
             $stack->push(array('duck'));
@@ -816,7 +814,7 @@
             $stack->push(array('zebra'));
             $stack->push(array('frog'));
 
-            $stack->sort(array($this, 'clbk_cmp'));
+            $stack->sort(array($this, 'clbkCmp'));
             $this->assertEquals($stack->pop(), array('zebra'));
             $this->assertEquals($stack->pop(), array('monkey'));
             $this->assertEquals($stack->pop(), array('frog'));
@@ -825,7 +823,7 @@
 
         // test unique
 
-        public function test_unique()
+        public function testUnique()
         {
             $stack = new Stack();
             $stack->push(1, 1, 1);
@@ -837,7 +835,7 @@
 
         // test unshift
 
-        public function test_unshift()
+        public function testUnshift()
         {
             $stack = new Stack(Stack::INFINITE_SIZE, Stack::ORDER_LIST);
             $stack->push(1, 2, 3);
@@ -853,7 +851,7 @@
 
     class NotificationsTesting extends TestingAdapter {
 
-        public function test_simple()
+        public function testSimple()
         {
             $notify = new Notifications();
             $notify->push("No error occured", 3);
@@ -918,7 +916,7 @@
 
     class SanitizorTesting extends TestingAdapter {
 
-        public function test_simple()
+        public function testSimple()
         {
             $sani = new TestSanitizor();
             $sani->addContext(array(
@@ -934,7 +932,7 @@
 
         // test Constructor
 
-        public function test_constructor()
+        public function testConstructor()
         {
             $sani = new TestSanitizor(array('name' => 'MySanitizor'));
             $this->assertEquals($sani->getName(), 'MySanitizor');
@@ -949,7 +947,7 @@
             $this->assertEquals($sani->getParameter(1), 2);
         }
 
-        public function test_constructorUseDefaults()
+        public function testConstructorUseDefaults()
         {
             $sani = new TestSanitizor(array('use_defaults' => false));
             $sani->addContext(array('mode' => 3));
@@ -960,7 +958,7 @@
 
         // test getInstance
 
-        public function test_getInstance()
+        public function testGetInstance()
         {
             $sani1 = Sanitizor::getInstance();
             $sani2 = Sanitizor::getInstance();
@@ -982,7 +980,7 @@
 
         // test setUseDefaults
 
-        public function test_setUseDefaults()
+        public function testSetUseDefaults()
         {
             $sani = new TestSanitizor();
             $sani->setUseDefaults(false);
@@ -993,7 +991,7 @@
 
         // test setName
 
-        public function test_setName()
+        public function testSetName()
         {
             $sani = new TestSanitizor(array('name' => 'MySanitizor'));
             $this->assertEquals($sani->getName(), 'MySanitizor');
@@ -1003,7 +1001,7 @@
 
         // test hooks
 
-        public function test_processingHook()
+        public function testProcessingHook()
         {
             $sani = new TestSanitizor();
 
@@ -1024,7 +1022,7 @@
             $this->assertFalse($sani->noDefaultValueHook);
         }
 
-        public function test_undefinedValueHook()
+        public function testUndefinedValueHook()
         {
             $sani = new TestSanitizor();
 
@@ -1044,7 +1042,7 @@
             $this->assertFalse($sani->noDefaultValueHook);
         }
 
-        public function test_invalidValueHook()
+        public function testInvalidValueHook()
         {
             $sani = new TestSanitizor(array('use_defaults' => false));
 
@@ -1065,7 +1063,7 @@
             $this->assertFalse($sani->noDefaultValueHook);
         }
 
-        public function test_noDefaultValueHook()
+        public function testNoDefaultValueHook()
         {
             $sani = new TestSanitizor(array('use_defaults' => true));
 
@@ -1088,7 +1086,7 @@
 
         // test addContext
 
-        public function test_addContext()
+        public function testAddContext()
         {
             $sani = new TestSanitizor();
             $sani->addContext(array('mode' => '0x1234'));
@@ -1126,7 +1124,7 @@
             $this->assertEquals($sani->getParameter('mode'), 0x1234);
         }
 
-        public function test_removeContext()
+        public function testRemoveContext()
         {
             $sani = new TestSanitizor();
             $sani->addContext(array('mode' => '0x1234'), 0);
@@ -1147,7 +1145,7 @@
             $this->assertEquals($sani->getParameter('mode'), 0x4567);
         }
 
-        public function test_clearContexts()
+        public function testClearContexts()
         {
             $sani = new TestSanitizor();
             $sani->addContext(array('mode' => '0x1234'));
@@ -1158,7 +1156,7 @@
             $this->assertEquals($sani->getParameter('mode'), 0x3456);
         }
 
-        public function test_addFilter()
+        public function testAddFilter()
         {
             $sani = new TestSanitizor();
             $sani->addContext(array('mode' => 'sani-tizAtion', 'num' => 8));
