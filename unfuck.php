@@ -132,7 +132,11 @@
 
     // Custom exceptions
 
-    class UndefinedValueException extends Exception { }
+    class UndefinedValueException extends InvalidArgumentException { }
+    class LookupException extends LogicException { }
+    class EnvironmentException extends RuntimeException { }
+    class NotImplementedException extends RuntimeException { }
+    class CharsetException extends RuntimeException { }
 
     //
     // A basic stack implementation.
