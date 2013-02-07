@@ -14,38 +14,6 @@
     error_reporting(E_ALL | E_STRICT);
     ini_set('display_errors', true);
 
-    // The following source code disables magic_quotes manually.
-    //
-    // Please be aware, that mysql_real_escape_string (as an
-    // exceptional function) will stripslash again. Therefore
-    // arguments for mysql_real_escape_string must be addslashed
-    // if magic_quotes_gpc=true.
-    // Nobody wants that, therefore this source code is disabled!
-
-    /*$__r = &$_REQUEST;
-    $__g = &$_GET;
-    $__p = &$_POST;
-    if (get_magic_quotes_gpc() === 1)
-        foreach (array($__r, $__g, $__p) as $__val1)
-            foreach ($__val1 as $__key2 => $__val2)
-                $__val1[$__key2] = stripslashes($__val2);
-
-    if (get_magic_quotes_gpc()) {
-        $_ = array(&$_GET, &$_POST, &$_COOKIE, &$_REQUEST);
-        while (list($_k, $_v) = each($_)) {
-            foreach ($_v as $k => $v) {
-                unset($_[$_k][$k]);
-                if (is_array($v)) {
-                    $_[$_k][stripslashes($k)] = $v;
-                    $_[] = &$_[$_k][stripslashes($k)];
-                } else {
-                    $_[$_k][stripslashes($k)] = stripslashes($v);
-                }
-            }
-        }
-        unset($_);
-    }*/
-
     //
     // A short alias to escape HTML consistently.
     //
