@@ -129,6 +129,22 @@
         return false;  // eg. object
     }
 
+    //
+    // Take some string ending with ' <number>'.
+    // Return a string with <number> incremented.
+    //
+    // @param string string  the string
+    // @return string  the string with number incremented or unchanged.
+    //
+    function inc(&$a) { return ++$a; }
+    function incrementSuffix($string)
+    {
+        $result = preg_replace_callback('/ \d+$/', 'inc', $string);
+        if ($result === NULL)
+            return $string;
+        return $result;
+    }
+
 
     // Custom exceptions
 
@@ -146,7 +162,7 @@
     //   A real stack is one where you can only access the top element.
     //   Therefore the interface only provides push() and pop().
     //   However in practice access to other elements is helpful in some
-    //   cases. So just like python's list, this datatype methods to
+    //   cases. So just like python's list, this datatype methods allow to
     //   interact with elements 'in the middle'.
     //
     // *stackorder / listorder*
@@ -168,6 +184,7 @@
     // @method chunk($size)
     // @method clear()
     // @method count()
+    // @method create($max_size, $elements, $order, $name)
     // @method diff($stack)
     // @method equals($stack)
     // @method exists($value)
@@ -271,6 +288,45 @@
         public function count()
         {
             return $this->getStackSize();
+        }
+
+        //
+        // A non-real cloning method.
+        // It allows simple creation of new stack based upon the configuration
+        // of the current object.
+        //
+        // @param max_size  a new max_size or NULL
+        // @param elements  a new elements array or NULL
+        // @param order  a new order property or NULL
+        // @param name  a new name or NULL
+        // @return Stack  a new stack
+        //
+        public function create($max_size=NULL, $elements=NULL, $order=NULL, $name=NULL)
+        {
+            if ($max_size === NULL)
+                $max_size = $this->max_size;
+
+            if ($order === NULL)
+                $order = $this->order;
+
+            $stack = new Stack($max_size, $order);
+
+            if ($elements !== NULL)
+            {
+                $stack->elements = $elements;
+                $stack->counter = count($stack->counter);
+            } else {
+                $stack->elements = $this->elements;
+                $stack->counter = count($this->elements);
+            }
+
+            if ($name !== NULL)
+                $stack->setName($name);
+            else {
+                $stack->setName(incrementSuffix($this->name));
+            }
+
+            return $stack;
         }
 
         //
