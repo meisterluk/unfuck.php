@@ -158,6 +158,41 @@
         return $id;
     }
 
+    //
+    // Return a subset of the parameter array with only keys of the whitelist.
+    //
+    // @param array  the array to select from
+    // @param whitelist  list of keys to select
+    // @return array  a subset of array
+    //
+    function whitelist($array, $whitelist)
+    {
+        $new_array = array();
+        foreach ($array as $key => $value)
+        {
+            if (in_array(key, $whitelist))
+                $new_array[$key] = $value;
+        }
+        return $new_array;
+    }
+
+    //
+    // Return a subset of the parameter array with only keys not in blacklist.
+    //
+    // @param array  the array to select from
+    // @param blacklist  list of keys to throw away
+    // @return array  a subset of array
+    //
+    function blacklist($array, $blacklist)
+    {
+        $new_array = array();
+        foreach ($array as $key => $value)
+        {
+            if (!in_array(key, $blacklist))
+                $new_array[$key] = $value;
+        }
+        return $new_array;
+    }
 
     // Custom exceptions
 
