@@ -25,7 +25,7 @@ Installation
 
 * Install the user.ini according to the `PHP Manual`_.
 * Copy&Paste or ``include`` source code of ``unfuck.php``.
-* Watch out for ``@config`` directives in ``unfuck.php`` where you have to adjust configuration variables to your own needs.
+* Watch out for ``@config`` directives in ``unfuck.php`` where you should adjust configuration variables to your own needs.
 
 Please stop using PHP. Every time you write php code little kittens die.
 
