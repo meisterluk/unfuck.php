@@ -145,6 +145,19 @@
         return $result;
     }
 
+    //
+    // Creates a unique ID among all calls in one program run.
+    //
+    // @return int  a unique ID
+    //
+    function uniqueId()
+    {
+        static $ids = array();
+        while (in_array(($id = mt_rand()), $ids))
+        {}
+        return $id;
+    }
+
 
     // Custom exceptions
 
@@ -157,6 +170,8 @@
     //
     // A basic stack implementation.
     // Heavily inspired by python's list datatype.
+    // This implementation uses object-based state for configuration.
+    // Note. This class does not use PHP 5.5's generators.
     //
     // *list behavior*
     //   A real stack is one where you can only access the top element.
@@ -173,12 +188,7 @@
     //   In general you will consider listorder to be more intuitive.
     //
     // TODO:
-    //   return $this for public methods where possible
-    //
-    // TODO:
-    //   Probably it's a better idea to provide order as parameter for
-    //   each method depending on its configuration. And remove the
-    //   global variable to avoid global state.
+    //   Consider merging create() and __clone()
     //
     // @method __construct($max_size=self::INFINITE_SIZE, $order=self::ORDER_LIST)
     // @method chunk($size)
@@ -218,11 +228,11 @@
         const ORDER_STACK = 2;
         const INFINITE_SIZE = -1;
 
-        protected $max_size;
         protected $counter;
         protected $elements;
+        protected $name;
+        public $max_size;
         public $order;
-        public $name;
 
         //
         // Constructor.
@@ -243,14 +253,15 @@
 
         //
         // An interface towards php's array_chunk.
-        // Splits an array into equal-sized parts.
+        // Splits the elements at the stack into equal-sized parts.
         // Order of chunks depend on configured order.
         //
         // @param int size  the size of each chunck
-        // @return array  an array containing chunks of the stack
+        // @return array  an array containing chunks of the stack elements
         //
         public function chunk($size)
         {
+            assert(is_int($size));
             if ($this->order === self::ORDER_LIST)
                 $elements = $this->elements;
             else
@@ -262,10 +273,13 @@
         //
         // Clear the stack. In-place method.
         //
+        // @return this
+        //
         public function clear()
         {
             $this->elements = array();
             $this->counter = 0;
+            return $this;
         }
 
         //
@@ -334,13 +348,18 @@
         // and the stack provided as argument.
         // Note. The position of the element is not important.
         //
-        // @param Stack stack  a Stack to compare with
+        // @param Stack|array stack  a Stack or array to compare with
         // @return Stack  a new Stack instance with elements of diff
         //
         public function diff($stack)
         {
-            $new = new Stack($this->max_size, $this->order);
-            $diff = array_diff($this->iterate(), $stack->iterate());
+            $new = $this->create();
+            if (is_array($stack))
+                $diff = array_diff($this->elements, $stack);
+            else {
+                $diff = array_diff($this->getNormalizedArray(),
+                                   $stack->getNormalizedArray());
+            }
             if (!isEmpty($diff))
                 call_user_func_array(array($new, 'push'), $diff);
             return $new;
@@ -349,18 +368,15 @@
         //
         // Test equality with another stack.
         //
-        // @param Stack stack  a stack to compare with
+        // @param Stack|array stack  a stack or array to compare with
         // @return boolean  is equal
         //
         public function equals($stack)
         {
-            $old_order_this = $this->order;
-
-            $this->order = $stack->order;
-            $equal = ($this->iterate() === $stack->iterate());
-            $this->order = $old_order_this;
-
-            return $equal;
+            if (is_array($stack))
+                return $this->getNormalizedArray() === $stack->getNormalizedArray();
+            else
+                return ($this->iterate() === $stack->iterate());
         }
 
         //
@@ -377,11 +393,24 @@
         //
         // Get the name assigned to this Stack.
         //
-        // @return string  the name you assigned to this stack
+        // @return string  the name you (hopefully) assigned to this stack
         //
         public function getName()
         {
             return (string)$this->name;
+        }
+
+        //
+        // Get a normalized representation of the array elements
+        // for comparison among stacks.
+        //
+        // @return array  the normalized array
+        //
+        protected function getNormalizedArray()
+        {
+            if ($this->order !== self::ORDER_LIST)
+                return array_reverse($this->elements);
+            return $this->elements;
         }
 
         //
@@ -392,6 +421,7 @@
         //
         public function getStackSize()
         {
+            assert($this->counter >= 0);
             return $this->counter;
         }
 
@@ -400,11 +430,17 @@
         // Access element at $index or throw OutOfRangeException
         //
         // @param int index  the index you want to access
+        // @return mixed  the value at this index
         //
         public function index($index)
         {
+            assert(is_int($index));
             if (array_key_exists($index, $this->elements))
+            {
+                if ($this->order !== self::ORDER_LIST)
+                    $index = $this->getStackSize() - $index - 1;
                 return $this->elements[$index];
+            }
 
             $msg = 'Provided index for stack is out of range';
             throw new OutOfRangeException($msg);
@@ -419,9 +455,10 @@
         //
         public function intersect($stack)
         {
-            $new = new Stack($this->max_size, $this->order);
-            $cmp_elements = is_array($stack) ? $stack : $stack->iterate();
-            $diff = array_intersect($this->iterate(), $cmp_elements);
+            assert(is_array($stack) || is_subclass_of($stack, __CLASS__));
+            $new = $this->create();
+            $cmp_elements = is_array($stack) ? $stack : $stack->getNormalizedArray();
+            $diff = array_intersect($this->getNormalizedArray(), $cmp_elements);
             if (!isEmpty($diff))
                 call_user_func_array(array($new, 'push'), $diff);
             return $new;
@@ -451,22 +488,27 @@
         //
         public function iterateFiltered($callback, $method='callback')
         {
+            assert(is_callable($callback));
+
             // Please remember that a callback might be an array
             // (static method). That's why $method exists.
             if ($method === 'callback')
                 return array_filter($this->iterate(), $callback);
 
-            return array_values(array_diff($this->iterate(), $callback));
+            return array_values($this->diff($callback));
         }
 
         //
         // Apply a callback to each element of the stack. In-place method.
         //
         // @param callback callback  The callback to apply
+        // @return this
         //
         public function map($callback)
         {
+            assert(is_callable($callback));
             $this->elements = array_map($callback, $this->elements);
+            return $this;
         }
 
         //
@@ -478,9 +520,11 @@
         //
         // @param int size  the target size
         // @param mixed value  the value to increase size
+        // @return this
         //
         public function pad($size, $value)
         {
+            assert(is_int($size));
             if ($size < 0)
                 throw new InvalidArgumentException(
                     'size argument of pad(size, value) must be positive'
@@ -499,6 +543,7 @@
                 $this->pop($diff);
                 $this->counter = $size;
             }
+            return $this;
         }
 
         //
@@ -516,6 +561,7 @@
         //
         public function pop($count=1)
         {
+            assert(is_int($count));
             if ($count === 0)
                 return;
             if ($this->counter < $count)
@@ -548,6 +594,7 @@
         // Note. Variadic function.
         //
         // @param mixed value  the value to push to the stack
+        // @return this
         //
         public function push($value)
         {
@@ -563,6 +610,8 @@
                 $this->elements[] = $value;
                 $this->counter += 1;
             }
+
+            return $this;
         }
 
         //
@@ -575,6 +624,7 @@
         // Note. Variadic function.
         //
         // @param mixed value  the value to push to the stack
+        // @return this
         //
         public function pushRev($value)
         {
@@ -590,6 +640,8 @@
                 $this->elements[] = $value;
                 $this->counter += 1;
             }
+
+            return $this;
         }
 
         //
@@ -598,17 +650,20 @@
         // In-place method.
         //
         // Note. See also push()
+        // Note. Variadic function.
         //
         // @param mixed value  the value to push
+        // @return this
         //
         public function pushElement($value)
         {
-            if ($this->order === self::ORDER_STACK)
-                call_user_func_array(array($this, 'pushRev'),
-                                     func_get_args());
-            else
+            if ($this->order === self::ORDER_LIST)
                 call_user_func_array(array($this, 'push'),
                                      func_get_args());
+            else
+                call_user_func_array(array($this, 'pushRev'),
+                                     func_get_args());
+            return $this;
         }
 
         //
@@ -627,6 +682,8 @@
         //
         public function reduce($callback)
         {
+            assert(is_callable($callback));
+
             if ($this->counter === 0)
                 return null;
             if ($this->counter === 1)
@@ -649,13 +706,16 @@
         //
         // @param int index  the index to look for
         // @param mixed replacement  the value to insert
+        // @return this
         //
         public function replace($index, $replacement)
         {
+            assert(is_int($index));
             if (array_key_exists($index, $this->elements))
                 $this->elements[$index] = $replacement;
             else
-                throw new OutOfRangeException('Replace element out of range');
+                throw new OutOfRangeException('Element to replace is out of range');
+            return $this;
         }
 
         //
@@ -665,22 +725,28 @@
         // @param array replacements  an associative array with keys already
         //                            pushed at stack to be replaced by the
         //                            corresponding value
+        // @return $this
         //
         public function replaceElements($replacements)
         {
+            assert(is_array($replacements));
             foreach ($this->elements as $key => $value)
             {
                 if (array_key_exists($value, $replacements))
                     $this->elements[$key] = $replacements[$value];
             }
+            return $this;
         }
 
         //
         // Reverse the stack. In-place method.
         //
+        // @return this
+        //
         public function reverse()
         {
             $this->elements = array_reverse($this->elements, false);
+            return $this;
         }
 
         //
@@ -688,10 +754,12 @@
         // In-place method.
         //
         // @param string name  a name for the stack
+        // @return this
         //
         public function setName($name)
         {
             $this->name = (string)$name;
+            return $this;
         }
 
         //
@@ -710,6 +778,8 @@
         //
         public function shift($count=1)
         {
+            assert(is_int($count));
+
             if ($this->counter < $count)
                 throw new UnderflowException('Shifting too many arguments');
 
@@ -720,6 +790,7 @@
 
             $this->elements = array_slice($this->elements, $count);
             $this->counter -= $count;
+
             return $elements;
         }
 
@@ -750,7 +821,7 @@
             else
                 $elements = $this->elements;
 
-            if ($length === null)
+            if ($length === NULL)
                 $elements = array_slice($elements, $offset);
             else
                 $elements = array_slice($elements, $offset, $length);
@@ -770,6 +841,7 @@
         // @param int start  the start index of the slice
         // @param int end  the end index of the slice
         // @param array replacements  elements inserted instead
+        // @return this
         //
         public function splice($start, $end, $replacements)
         {
@@ -788,6 +860,7 @@
             $tail = array_slice($this->elements, $end);
 
             $this->elements = array_merge($head, $replacements, $tail);
+            return $this;
         }
 
         //
@@ -795,6 +868,7 @@
         // Note. You might wanna use iterate() or pop() afterwards.
         //
         // @param callback cmp_func  a custom comparison function
+        // @return this
         //
         public function sort($cmp_func=NULL)
         {
@@ -802,6 +876,7 @@
                 sort($this->elements);
             else
                 usort($this->elements, $cmp_func);
+            return $this;
         }
 
         //
@@ -856,11 +931,13 @@
         //
         // @param int sort_flags  Flags defining comparison configuration
         //                        see also [0]
+        // @return this
         //
         public function unique($sort_flags=SORT_REGULAR)
         {
             $this->elements = array_unique($this->elements, $sort_flags);
             $this->counter = count($this->elements);
+            return $this;
         }
 
         //
@@ -868,6 +945,7 @@
         // Note. It will be inserted in the configured order.
         //
         // @array array array  an array to shift
+        // @return this
         //
         public function unshift($array)
         {
@@ -879,6 +957,7 @@
 
             $this->elements = array_merge($array, $this->elements);
             $this->counter = count($this->elements);
+            return $this;
         }
 
         //
