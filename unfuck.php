@@ -204,6 +204,7 @@
     // @method intersect($stack)
     // @method iterate()
     // @method iterateFiltered($callback, $method='callback')
+    // @method iteratePopping()
     // @method map($callback)
     // @method pad($size, $value)
     // @method pop($count=1)
@@ -496,6 +497,18 @@
                 return array_filter($this->iterate(), $callback);
 
             return array_values($this->diff($callback));
+        }
+
+        //
+        // Return an object for iteration and pop elements at the same time.
+        //
+        // @return array  an array you can iterate over
+        //
+        public function iteratePopping()
+        {
+            $elements = $this->iterate();
+            $this->clear();
+            return $elements;
         }
 
         //
