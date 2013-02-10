@@ -27,6 +27,19 @@
     }
 
     //
+    // Get item from the array or return default value.
+    //
+    // @param array  the array
+    // @param key  the key to look for
+    // @param default  the default value
+    // @return mixed  either array[key] or default value
+    //
+    function getItem($array, $key, $default)
+    {
+        return array_key_exists($key, $array) ? $array[$key] : $default;
+    }
+
+    //
     // Titlecase words in the given string
     // (ie. ucwords() but also look for hyphens).
     // Looses all upper/lowercase information given by string.
