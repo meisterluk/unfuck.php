@@ -34,7 +34,7 @@
     // @param default  the default value
     // @return mixed  either array[key] or default value
     //
-    function getItem($array, $key, $default)
+    function getItem($array, $key, $default=NULL)
     {
         return array_key_exists($key, $array) ? $array[$key] : $default;
     }
@@ -92,7 +92,7 @@
     //
     // @param string string  parameter to search in
     // @param string substring  needle to search for
-    // @return boolean  string starts with substring
+    // @return bool  string starts with substring
     //
     function startswith($string, $substring)
     {
@@ -104,10 +104,12 @@
     //
     // @param string string  parameter to search in
     // @param string substring  needle to search for
-    // @return boolean  string ends with substring
+    // @return bool  string ends with substring
     //
     function endswith($string, $substring)
     {
+        if ($substring === '')
+            return true;
         return substr($string, -strlen($substring)) === $substring;
     }
 
@@ -116,7 +118,7 @@
     // Sorry, but code stands for itself.
     //
     // @param mixed val a value to parse
-    // @return boolean  test value to be considered as 'empty' or not
+    // @return bool  test value to be considered as 'empty' or not
     //
     function isEmpty($val)
     {
@@ -149,10 +151,16 @@
     // @param string string  the string
     // @return string  the string with number incremented or unchanged.
     //
-    function inc(&$a) { return ++$a; }
+    function inc(&$a)
+    {
+        assert(is_int($a));
+        return ++$a;
+    }
     function incrementSuffix($string)
     {
-        $result = preg_replace_callback('/ \d+$/', 'inc', $string);
+        $func = create_function('$match', '$int = (int)$match[2]; '.
+                                'return $match[1].inc($int);');
+        $result = preg_replace_callback('/(\s)(\d+)$/', $func, $string);
         if ($result === NULL)
             return $string;
         return $result;
@@ -168,6 +176,7 @@
         static $ids = array();
         while (in_array(($id = mt_rand()), $ids))
         {}
+        $ids[] = $id;
         return $id;
     }
 
@@ -183,7 +192,7 @@
         $new_array = array();
         foreach ($array as $key => $value)
         {
-            if (in_array(key, $whitelist))
+            if (in_array($key, $whitelist))
                 $new_array[$key] = $value;
         }
         return $new_array;
@@ -201,7 +210,7 @@
         $new_array = array();
         foreach ($array as $key => $value)
         {
-            if (!in_array(key, $blacklist))
+            if (!in_array($key, $blacklist))
                 $new_array[$key] = $value;
         }
         return $new_array;
@@ -217,7 +226,6 @@
 
     //
     // A basic stack implementation.
-    // Heavily inspired by python's list datatype.
     // This implementation uses object-based state for configuration.
     // Note. This class does not use PHP 5.5's generators.
     //
@@ -229,20 +237,20 @@
     //   interact with elements 'in the middle'.
     //
     // *stackorder / listorder*
-    //   If you access elements in the middle of the list. Are those
-    //   elements in their natural (order of pushing) or reversed order
-    //   (order of popping)? You can configure this in the constructor
+    //   Assume you are getting a slice of the stack.
+    //   Are the returned elements in their natural (order of pushing)
+    //   or reversed order (order of popping)?
+    //   You can configure this in the constructor
     //   and modify the property during runtime (if necessary).
-    //   In general you will consider listorder to be more intuitive.
+    //   In general listorder is considered to be more intuitive.
     //
-    // TODO:
-    //   Consider merging create() and __clone()
-    //
-    // @method __construct($max_size=self::INFINITE_SIZE, $order=self::ORDER_LIST)
     // @method chunk($size)
     // @method clear()
+    // @method __clone()
+    // @method __construct($max_size=self::INFINITE_SIZE, $order=self::ORDER_LIST)
+    // @method copy()
     // @method count()
-    // @method create($max_size, $elements, $order, $name)
+    // @method create($max_size=NULL, $elements=NULL, $order=NULL, $name=NULL)
     // @method diff($stack)
     // @method equals($stack)
     // @method exists($value)
@@ -258,18 +266,20 @@
     // @method pop($count=1)
     // @method push($value)
     // @method pushRev($value)
-    // @method pushElement()
+    // @method pushElement($value)
     // @method reduce($callback)
     // @method replace($index, $replacement)
     // @method replaceElements($replacements)
     // @method reverse()
     // @method setName($name)
+    // @method __set_state($properties)
     // @method shift($count=1)
     // @method shuffle()
     // @method slice($offset, $length=null)
     // @method splice($start, $end, $replacements)
-    // @method sort()
-    // @method unique($sort_flags)
+    // @method sort($cmp_func=NULL)
+    // @method __toString()
+    // @method unique($sort_flags=SORT_REGULAR)
     // @method unshift($array)
     //
     class Stack {
@@ -282,23 +292,6 @@
         protected $name;
         public $max_size;
         public $order;
-
-        //
-        // Constructor.
-        //
-        // @param int max_size  the maximum size of the stack
-        //                      (self::INFINITE_SIZE for INFINITE_SIZE)
-        // @param boolean order  The order slices of elements are returned
-        //                       (either ORDER_STACK or ORDER_LIST)
-        //
-        public function __construct($max_size=self::INFINITE_SIZE,
-                $order=self::ORDER_LIST)
-        {
-            $this->max_size = $max_size;
-            $this->order = $order;
-            $this->counter = 0;
-            $this->elements = array();
-        }
 
         //
         // An interface towards php's array_chunk.
@@ -332,8 +325,37 @@
         }
 
         //
+        // The magic __clone method (Object cloning).
+        //
+        // @return Stack  an cloned Stack instance.
+        //
+        public function __clone()
+        {
+            return $this->create($this->max_size, $this->elements,
+                $this->order, $this->name);
+        }
+
+        //
+        // Constructor.
+        //
+        // @param int max_size  the maximum size of the stack
+        //                      (self::INFINITE_SIZE for INFINITE_SIZE)
+        // @param boolean order  The order slices of elements are returned
+        //                       (either ORDER_STACK or ORDER_LIST)
+        //
+        public function __construct($max_size=self::INFINITE_SIZE,
+                $order=self::ORDER_LIST)
+        {
+            $this->max_size = $max_size;
+            $this->order = $order;
+            $this->counter = 0;
+            $this->elements = array();
+        }
+
+        //
         // Copy the stack.
         // Create a new Stack instance with the same properties.
+        // Alias for clone operator.
         //
         // @return Stack  the copy
         //
@@ -375,27 +397,30 @@
             $stack = new Stack($max_size, $order);
 
             if ($elements !== NULL)
-            {
                 $stack->elements = $elements;
-                $stack->counter = count($stack->counter);
-            } else {
+            else
                 $stack->elements = $this->elements;
-                $stack->counter = count($this->elements);
-            }
+            $stack->counter = count($stack->elements);
 
             if ($name !== NULL)
                 $stack->setName($name);
             else {
-                $stack->setName(incrementSuffix($this->name));
+                if (is_numeric(substr($this->name, -1)))
+                    $stack->setName(incrementSuffix($this->name));
+                elseif (strlen($this->name) > 3)
+                    $stack->setName($this->name.' 2');
+                else
+                    $stack->setName($this->name);
             }
 
             return $stack;
         }
 
         //
-        // Get a new Stack with set of elements different in this stack
-        // and the stack provided as argument.
+        // Get a new Stack with set of elements of current stack not available
+        // in stack provided as argument.
         // Note. The position of the element is not important.
+        // Note. The new stack inherits the configuration of the current stack.
         //
         // @param Stack|array stack  a Stack or array to compare with
         // @return Stack  a new Stack instance with elements of diff
@@ -403,6 +428,7 @@
         public function diff($stack)
         {
             $new = $this->create();
+            $new->clear();
             if (is_array($stack))
                 $diff = array_diff($this->elements, $stack);
             else {
@@ -415,7 +441,32 @@
         }
 
         //
+        // Get a new Stack with set of elements of current stack not available
+        // in stack provided as argument.
+        // Note. The position of the element matters!
+        // Note. The new stack inherits the configuration of the current stack.
+        //
+        // @param Stack|array stack  a Stack or array to compare with
+        // @return Stack  a new Stack instance with elements of diff
+        //
+        public function diffAssoc($stack)
+        {
+            $new = $this->create();
+            $new->clear();
+            if (is_array($stack))
+                $diff = array_diff_assoc($this->elements, $stack);
+            else {
+                $diff = array_diff_assoc($this->getNormalizedArray(),
+                                         $stack->getNormalizedArray());
+            }
+            if (!isEmpty($diff))
+                call_user_func_array(array($new, 'push'), $diff);
+            return $new;
+        }
+
+        //
         // Test equality with another stack.
+        // Note. Does only test elements. Not configuration.
         //
         // @param Stack|array stack  a stack or array to compare with
         // @return boolean  is equal
@@ -423,7 +474,7 @@
         public function equals($stack)
         {
             if (is_array($stack))
-                return $this->getNormalizedArray() === $stack->getNormalizedArray();
+                return $this->getNormalizedArray() === $stack;
             else
                 return ($this->iterate() === $stack->iterate());
         }
@@ -432,11 +483,24 @@
         // Does $value exist as element in the stack?
         //
         // @param mixed value  the value to look for
-        // @return boolean  $value exists in stack?
+        // @return bool  $value exists in stack?
         //
         public function exists($value)
         {
             return in_array($value, $this->elements);
+        }
+
+        //
+        // Get max size.
+        //
+        // @return int|NULL  the maximum size. Integer or NULL (for infinite)
+        //
+        public function getMaxSize()
+        {
+            if ($this->max_size === Stack::INFINITE_SIZE)
+                return NULL;
+            else
+                return $this->max_size;
         }
 
         //
@@ -479,12 +543,12 @@
         // Access element at $index or throw OutOfRangeException
         //
         // @param int index  the index you want to access
-        // @return mixed  the value at this index
+        // @return mixed  the element at this index
         //
         public function index($index)
         {
             assert(is_int($index));
-            if (array_key_exists($index, $this->elements))
+            if ($index < $this->getStackSize())
             {
                 if ($this->order !== self::ORDER_LIST)
                     $index = $this->getStackSize() - $index - 1;
@@ -504,12 +568,16 @@
         //
         public function intersect($stack)
         {
-            assert(is_array($stack) || is_subclass_of($stack, __CLASS__));
+            assert(is_array($stack) || is_a($stack, __CLASS__));
+
             $new = $this->create();
+            $new->clear();
             $cmp_elements = is_array($stack) ? $stack : $stack->getNormalizedArray();
+
             $diff = array_intersect($this->getNormalizedArray(), $cmp_elements);
             if (!isEmpty($diff))
                 call_user_func_array(array($new, 'push'), $diff);
+
             return $new;
         }
 
@@ -537,14 +605,15 @@
         //
         public function iterateFiltered($callback, $method='callback')
         {
-            assert(is_callable($callback));
+            assert(($method === 'array' && is_array($callback)) ||
+                   ($method === 'callback' && is_callable($callback)));
 
             // Please remember that a callback might be an array
             // (static method). That's why $method exists.
             if ($method === 'callback')
                 return array_filter($this->iterate(), $callback);
 
-            return array_values($this->diff($callback));
+            return array_values($this->diff($callback)->iterate());
         }
 
         //
@@ -617,7 +686,7 @@
         //
         // Throws an UnderflowException for popping from empty stack.
         //
-        // @param count  how many elements shall be popped?
+        // @param int count  how many elements shall be popped?
         // @return mixed  a value (if $count===1) or an array of elements
         //
         public function pop($count=1)
@@ -824,6 +893,24 @@
         }
 
         //
+        // The magic __set_state method.
+        //
+        // @param array properties  the properties to set
+        // @return object  an object Stack with properties set to $properties
+        //
+        public static function __set_state($properties)
+        {
+            $stack = new Stack();
+            $stack->max_size = $properties['max_size'];
+            $stack->counter = $properties['counter'];
+            $stack->elements = $properties['elements'];
+            $stack->order = $properties['order'];
+            $stack->name = $properties['name'];
+
+            return $stack;
+        }
+
+        //
         // pop() for the bottom of the stack.
         // Will remove $count elements from the bottom of the stack.
         //
@@ -834,8 +921,8 @@
         //
         // Throws an UnderflowException for shifting from empty stack.
         //
-        // @param count  how many elements shall be shifted?
-        // @return a value (if $count===1) or an array of elements
+        // @param int count  how many elements shall be shifted?
+        // @return mixed  a value (if $count===1) or an array of elements
         //
         public function shift($count=1)
         {
@@ -858,7 +945,7 @@
         //
         // Shuffle stack. In-place method.
         //
-        // @return boolean  boolean indicating success or failure
+        // @return bool  boolean indicating success or failure
         //
         public function shuffle()
         {
@@ -882,7 +969,7 @@
             else
                 $elements = $this->elements;
 
-            if ($length === NULL)
+            if (is_null($length))
                 $elements = array_slice($elements, $offset);
             else
                 $elements = array_slice($elements, $offset, $length);
@@ -933,7 +1020,7 @@
         //
         public function sort($cmp_func=NULL)
         {
-            if ($cmp_func === NULL)
+            if (is_null($cmp_func))
                 sort($this->elements);
             else
                 usort($this->elements, $cmp_func);
@@ -986,81 +1073,12 @@
         }
 
         //
-        // Remove duplicate values from stack. In-place method.
-        //
-        // [0] http://us.php.net/manual/de/function.array-unique.php
-        //
-        // @param int sort_flags  Flags defining comparison configuration
-        //                        see also [0]
-        // @return this
-        //
-        public function unique($sort_flags=SORT_REGULAR)
-        {
-            $this->elements = array_unique($this->elements, $sort_flags);
-            $this->counter = count($this->elements);
-            return $this;
-        }
-
-        //
-        // Will insert $array at the bottom of the stack. In-place method.
-        // Note. It will be inserted in the configured order.
-        //
-        // @array array array  an array to shift
-        // @return this
-        //
-        public function unshift($array)
-        {
-            $this->SOcheck('Cannot unshift so many elements',
-                            count($array));
-
-            if ($this->order === self::ORDER_STACK)
-                $array = array_reverse($array, false);
-
-            $this->elements = array_merge($array, $this->elements);
-            $this->counter = count($this->elements);
-            return $this;
-        }
-
-        //
-        // The magic __set_state method.
-        //
-        // @param array properties  the properties to set
-        // @return object  an object Stack with properties set to $properties
-        //
-        public static function __set_state($properties)
-        {
-            $stack = new Stack();
-            $stack->max_size = $properties['max_size'];
-            $stack->counter = $properties['counter'];
-            $stack->elements = $properties['elements'];
-            $stack->order = $properties['order'];
-            $stack->name = $properties['name'];
-
-            return $stack;
-        }
-
-        //
-        // The magic __clone method (Object cloning).
-        //
-        // @return Stack  an cloned Stack instance.
-        //
-        public function __clone()
-        {
-            $stack = new Stack($this->max_size, $this->order);
-            $stack->elements = $this->elements;
-            $stack->counter = $this->counter;
-            $stack->name = $this->name;
-
-            return $stack;
-        }
-
-        //
         // String representation of the stack.
-        // Magic method __tostring.
+        // Magic method __toString.
         //
         // @return string  the string representation
         //
-        public function __tostring()
+        public function __toString()
         {
             $elements = $this->elements;
             foreach ($elements as $key => $element)
@@ -1080,6 +1098,41 @@
             $str .= implode(' | ', $elements);
             $str .= ' ]';
             return $str;
+        }
+        //
+        // Remove duplicate values from stack. In-place method.
+        //
+        // [0] http://us.php.net/manual/de/function.array-unique.php
+        //
+        // @param int sort_flags  Flags defining comparison configuration
+        //                        see also [0]
+        // @return this
+        //
+        public function unique($sort_flags=SORT_REGULAR)
+        {
+            $this->elements = array_unique($this->elements, $sort_flags);
+            $this->counter = count($this->elements);
+            return $this;
+        }
+
+        //
+        // Will insert $array at the bottom of the stack. In-place method.
+        // Note. It will be inserted in the configured order.
+        //
+        // @param array array  an array to shift
+        // @return this
+        //
+        public function unshift($array)
+        {
+            $this->SOcheck('Cannot unshift so many elements',
+                            count($array));
+
+            if ($this->order === self::ORDER_STACK)
+                $array = array_reverse($array, false);
+
+            $this->elements = array_merge($array, $this->elements);
+            $this->counter = count($this->elements);
+            return $this;
         }
     }
 
@@ -1105,7 +1158,7 @@
     // @method reset()
     // @method filter($min=3, $gt=true)
     // @method iterate()
-    // @method dump($format=0, $indent=0)
+    // @method dump($format='text', $indent=0)
     //
     class Notifications
     {
@@ -1178,7 +1231,7 @@
         {
             if ($msg1[1] < $msg2[1])
                 return -1;
-            elseif ($msg[1] === $msg2[1])
+            elseif ($msg1[1] === $msg2[1])
                 return 0;
             else
                 return 1;
@@ -1210,11 +1263,12 @@
         //
         // Use the iterate() method to iterate over the result.
         //
-        // @param classes a map between source classes and translated classes
+        // @param array classes  a map between source classes
+        //                       and translated classes
         //
         protected function translateClasses($classes=NULL)
         {
-            if ($classes === NULL)
+            if (is_null($classes))
                 $classes = array(
                     self::NOTE => 'note',
                     self::INFO => 'info',
@@ -1234,7 +1288,7 @@
         // Returns array messages. Some kind of a getter method with
         // pre-sorting capabilities.
         //
-        // @return array of messages
+        // @return array  array of messages
         //
         public function iterate()
         {
@@ -1246,38 +1300,54 @@
         //
         // Dump in HTML or plain text.
         //
-        // @param format int  the format {0: HTML, 1: plain text}
-        // @param indent int  the level of indentation
+        // @param string format  output format. either 'text' or 'html'
+        // @param int indent  the level of indentation
         //                    (ie. number of spaces before each line)
         // @return string  a string describing the state of the object
         //
-        public function dump($format=0, $indent=0)
+        public function dump($format='text', $indent=0)
         {
             $in = str_repeat(' ', $indent);
             $out = '';
             $this->translateClasses();
 
-            if ($format === 0)
-            { // HTML
+            switch ($format)
+            {
+            case 'html':
                 $out .= $in.'<div class="dump">'."\n";
-                $out .= $in.'  <h1>HTML Dump</h1>'."\n\n";
+                $out .= $in.'  <h1>Notifications Dump</h1>'."\n\n";
                 $out .= $in.'  <ul>'."\n";
-                foreach ($this->msgs as $msg)
+                foreach ($this->msgs->iterate() as $msg)
                 {
                     $out .= $in.'    <li class="'._e($msg[1]).'">'
                             ._e($msg[0]).'</li>'."\n";
                 }
-                $out .= $in.'  </ul>'."\n";
+                $out .= $in.'  </ul>'."\n".$in.'</div>'."\n";
+                break;
 
-            } else {
-                $out .= "Dump\n";
-                $out .= "====\n\n";
-                foreach ($this->msgs as $msg)
+            default:
+            case 'text':
+                $out .= $in."Notifications Dump\n";
+                $out .= $in."==================\n\n";
+                $found = false;
+                foreach ($this->msgs->iterate() as $msg)
                 {
-                    $out .= $in.' * ('.$msg[1].') '.$msg[0]."\n";
+                    $out .= $in.' * Message (class='.$msg[1].'):'.$msg[0]."\n";
+                    $found = true;
                 }
+                if (!$found)
+                    $out .= $in.'(no notifications stored).';
+                break;
             }
             return $out;
+        }
+
+        //
+        // Magic method. String representation.
+        //
+        public function __toString()
+        {
+            return $this->dump('text', 0);
         }
     }
 
@@ -1287,17 +1357,17 @@
     // filter_var function of the "Filter Functions" module in PHP5.
     //
     // Note. This is not a pure singleton class. It still allows instantiation,
-    //       but a singleton can be accessed by the getInstance() method
+    //       but a singleton can be accessed by the getInstance() method as well
     // Note. This class does not support arrays as parameters. To process
     //       one-dimensional arrays, you can set the array to be a context,
     //       but input is supposed to be flat (not hierarchical) here.
     // Note. In current implementation, if variable occurs in multiple contexts
-    //       the first $contexts containing it is taken.
+    //       the first $context containing the value is used.
     //
     // Hooks
     //   The Sanitizor provides several hooks. These are defined states reached
     //   during the evaluation of a parameter. You might want to inherit this
-    //   class and override the hooks with the subclass to your desired behavior.
+    //   class and override the hooks with the subclass for your desired behavior.
     //
     //
     // Public API:
@@ -1305,30 +1375,38 @@
     // @method __construct($options=NULL)
     // @method getInstance($options=NULL)
     //
-    // @method setUseDefaults($use_defaults)
-    // @method getUseDefaults()
+    // @method setUseDefaultsInvalid($use_defaults_invalid)
+    // @method getUseDefaultsInvalid()
+    // @method setUseDefaultsUndefined($use_defaults_undefined)
+    // @method getUseDefaultsUndefined()
     // @method setName($name)
     // @method getName()
     //
     // @method preProcessingHook($identifier, $value)
     // @method postProcessingHook($identifier, $value)
-    // @method undefinedValueHook($identifier)
     // @method invalidValueHook($identifier, $value)
-    // @method noDefaultValueHook($identifier, $value)
+    // @method undefinedValueHook($identifier)
+    // @method noDefaultValueHook($identifier)
+    //
+    // @method dump($format='text', $indent=0)
     //
     // @method addContext($array, $id=NULL, $overwrite=true)
     // @method removeContext($identifier)
     // @method clearContexts()
     //
     // @method addFilter($identifier, $filter, $parameters=NULL)
-    // @method removeFilter($identifier)
+    // @method registerFilter($name, $callback)
+    // @method removeFilters($identifier)
     // @method clearFilters()
     //
     // @method addRule($identifier, $types=NULL, $default=NULL, $overwrite=true)
+    // @method removeRule($identifier)
+    // @method clearRules()
+    //
     // @method getValidity($identifier)
     // @method getParameter($identifier)
+    // @method get($identifier)
     // @method __get($identifier)
-    // @method clearRules()
     //
     class Sanitizor
     {
@@ -1363,27 +1441,40 @@
         protected $default_binary       = 0;
         protected $default_bool         = false;
         // loose boolean always evaluates to true or false
-        #protected $default_loose_bool   = 0;
+        #protected $default_loose_bool   = false;
         protected $default_char         = '0';
         protected $default_alnum        = '0';
         protected $default_alpha        = 'A';
         protected $default_print        = '!';
         protected $default_whitespace   = ' ';
 
-        // turn on or off default values
-        // if value is given, but invalid
-        //     and use_defaults=true, the default value is returned
-        //     and use_defaults=false, invalidValueHook gets called
-        protected $use_defaults = true;
+        protected $type_delimiter       = ',';
+        protected $filter_delimiter     = ',';
 
-        // array containing rules.
+        // turn on or off default values for invalid values
+        // if the value is found, a rule exists but the type is invalid
+        //   true, then return default value for this identifier
+        //   false, then return sanitized value (usually this->default_{type})
+        protected $use_defaults_invalid = true;
+
+        // turn on or off default values for undefined values
+        // if the value was not found but a rule exists
+        //   true, then return default value for this identifier
+        //   false, then return sanitized value (usually this->default_{type})
+        protected $use_defaults_undefined = true;
+
+        // array containing custom rules.
         // array[$identifier] = (bitfield $type, $default);
         protected $rules = array();
 
-        // array containing filters.
+        // array containing triggered filters.
         // array[$identifier] = array(array($filter1_id, $params),
         //                            array($filter2_id), ...);
         protected $filters = array();
+
+        // array containing custom filters.
+        // array[$name] = $callback
+        protected $custom_filters = array();
 
         // list of contexts (arrays) to search variables in
         protected $contexts = array();
@@ -1401,19 +1492,22 @@
         // Constructor.
         //
         // The following keys can be provided:
-        //   {use_defaults, name, log, contexts}
+        //   {use_defaults_invalid, use_defaults_undefined, name, log, contexts}
         // log defaults to a new Notifications instance.
         // contexts defaults to a set of superglobals.
-        // Will not write to log if unknown key is given.
+        // I will not store any values of unknown keys.
         //
         // @param array options  An associative array for configuration
         //
         public function __construct($options=NULL)
         {
-            if (isset($options['use_defaults']))
-                $this->setUseDefaults($options['use_defaults']);
-            else
-                $this->setUseDefaults(true);
+            if (isset($options['use_defaults_invalid']))
+                $this->setUseDefaultsInvalid($options['use_defaults_invalid']);
+
+            $key = 'use_defaults_undefined';
+            if (isset($options[$key]))
+                $this->setUseDefaultsUndefined($options[$key]);
+
             if (isset($options['name']))
                 $this->setName($options['name']);
 
@@ -1423,19 +1517,34 @@
                 $this->log = new Notifications();
 
             if (isset($options['contexts']))
-                $this->contexts = $options['contexts'];
-            else
+            {
+                # if contexts is array make it array of arrays
+                $invalid = false;
+                foreach ($options['contexts'] as $key => $value)
+                {
+                    if (!is_array($value))
+                        $invalid = true;
+                }
+                if ($invalid)
+                    $this->contexts = array($options['contexts']);
+                else
+                    $this->contexts = $options['contexts'];
+            } else {
                 $this->contexts = array(
-                    &$_SERVER, &$_REQUEST, &$_FILES,
+                    &$_SERVER, &$_POST, &$_GET, &$_FILES,
                     &$_COOKIE, &$_SESSION, &$_ENV
                 );
+                $this->contexts[] = array('argv' => &$GLOBALS['argv'],
+                    'argc' => &$GLOBALS['argc']);
+            }
 
-            $whitelist = array('use_defaults', 'log', 'name', 'contexts');
+            $whitelist = array('use_defaults_invalid', 'use_defaults_undefined',
+                'log', 'name', 'contexts');
             if (!isEmpty($options))
             {
                 foreach ($options as $key => $value)
                 {
-                    if (array_key_exists($key, $whitelist))
+                    if (!in_array($key, $whitelist))
                     {
                         $msg = 'Provided key "%s" was not expected';
                         $this->log->push(sprintf($msg, $key), 2);
@@ -1461,25 +1570,47 @@
         }
 
         //
-        // Use default value?
+        // Use default value for invalid values?
         //
-        // @param bool use_defaults  value to set
+        // @param bool use_defaults_invalid  value to set
         // @return Sanitizor  this
         //
-        public function setUseDefaults($use_defaults)
+        public function setUseDefaultsInvalid($use_defaults_invalid)
         {
-            $this->use_defaults = (bool)$use_defaults;
+            $this->use_defaults_invalid = (bool)$use_defaults_invalid;
             return $this;
         }
 
         //
-        // Return setting for "Use default value?"
+        // Return setting for "Use default value for invalid values?"
         //
         // @return bool  setting
         //
-        public function getUseDefaults()
+        public function getUseDefaultsInvalid()
         {
-            return $this->use_defaults;
+            return $this->use_defaults_invalid;
+        }
+
+        //
+        // Use default value for undefined values?
+        //
+        // @param bool use_defaults_undefined  value to set
+        // @return Sanitizor  this
+        //
+        public function setUseDefaultsUndefined($use_defaults_undefined)
+        {
+            $this->use_defaults_undefined = (bool)$use_defaults_undefined;
+            return $this;
+        }
+
+        //
+        // Return setting for "Use default value for undefined values?"
+        //
+        // @return bool  setting
+        //
+        public function getUseDefaultsUndefined()
+        {
+            return $this->use_defaults_undefined;
         }
 
         //
@@ -1506,59 +1637,79 @@
         }
 
         // Hooks
+        //
+        // Hooks make it possible to modify data if certain conditions are met.
+        // They have the following format:
+        //
+        //     Input: (mixed identifier, mixed value)
+        //     Output: (mixed identifier, boolean|NULL validity, mixed parameter)
+        //             or NULL
+        //
+        // The hook is called with identifier (the identifier requested) and
+        // value (the value found in some context or the parameter to be returned
+        // if processing was already done). The hook has to return an array with
+        // 3 values:
+        //   identifier  the new identifier to use instead [mixed]
+        //               (don't use it if you are not aware of the interal effects)
+        //   validity    [boolean or NULL]
+        //               true, if $parameter is a valid value for this identifier
+        //               false, if $parameter is not a valid (but sanitized) value
+        //               NULL, if $parameter will be trashed
+        //   parameter   the sanitized value for this identifier [mixed]
+        //
+        // This describes the general interface.
+        // Some hooks consist only of a subset of parameters / return values.
+        // If the hook returns NULL, the normal handling will be done just like the
+        // hook has never been called (is equivalent to return value
+        // ($identifier, NULL, $parameter).
 
         //
         // Hook after the value was found in some context,
         // but before its validity gets checked.
         //
-        // @param string identifier  the identifier requested
-        // @param mixed value  the actual value given in the context
-        // @return array  an array($identifier, $value)
+        // @param mixed identifier  the identifier requested
+        // @param mixed value  context[identifier]
+        // @return array|NULL  array($identifier, $validity, $parameter) or NULL
         //
         public function preProcessingHook($identifier, $value)
         {
-            return array($identifier, $value);
+            return array($identifier, NULL, $value);
         }
 
         //
         // Hook invoked after applying filters and
         // before returning $value to user.
         //
-        // @param string identifier  the identifier requested
-        // @param mixed value  the actual value given in the context
-        // @return mixed  $identifier
+        // @param mixed identifier  the identifier requested
+        // @param mixed value  the value to be returned to the user
+        // @return array|NULL  array($validity, $parameter) or NULL
         //
         public function postProcessingHook($identifier, $value)
         {
-            return $identifier;
+            return array(NULL, $value);
+        }
+
+        //
+        // Hook called when $identifier in context failed the type validity test
+        //
+        // @param mixed identifier  the identifier requested
+        // @param mixed value  context[identifier]
+        // @return array|NULL  array($identifier, $validity, $parameter) or NULL
+        //
+        public function invalidValueHook($identifier, $value)
+        {
+            return array($identifier, NULL, $value);
         }
 
         //
         // Hook called when $identifier could not be found in any context.
         //
-        // @param string identifier  the identifier requested
-        // @return mixed  the value returned to the user
+        // @param mixed identifier  the identifier requested
+        // @return array|NULL  array($identifier, $validity, $parameter) or NULL
         //
         public function undefinedValueHook($identifier)
         {
-            $msg = 'Value is undefined in Sanitzor contexts';
-            throw new UndefinedValueException($msg);
-            return NULL;
-        }
-
-        //
-        // Hook invoked when value is invalid and defaults shall not
-        // be used.
-        //
-        // @param string identifier  the identifier requested
-        // @param mixed value  the value to be returned
-        // @return mixed  the value returned to the user
-        //
-        public function invalidValueHook($identifier, $value)
-        {
-            $msg = 'Value given for "'.$identifier.'" is invalid';
-            throw new UnexpectedValueException($msg);
-            return NULL;
+            return array($identifier, NULL, NULL);
         }
 
         //
@@ -1566,72 +1717,188 @@
         // configuration, no default value was provided for this
         // $identifier.
         //
-        // @param string identifier  the identifier requested
-        // @param mixed value  the value to be returned
-        // @return mixed  the value returned to the user
+        // @param mixed identifier  the identifier requested
+        // @return array|NULL  array($validity, $parameter) or NULL
         //
-        public function noDefaultValueHook($identifier, $value)
+        public function noDefaultValueHook($identifier)
         {
-            //$this->rules[$identifier]
-            // TODO
+            //return NULL;
+            // ... or ...
+            //throw new UndefinedValueException('Default value was not set');
+            // ... or ...
+            return array(NULL, NULL);
         }
 
         //
-        // A type got specified as parameter which is unknown / invalid.
-        // Eg. can be used as a hook to write to a logfile
+        // Write string representation of Sanitizor instance to stdout
         //
-        // @param string type  the type specified
+        // @param string format  either 'text' or 'html'
+        // @param int indent  the indentation level
+        // @return Sanitizor  this
         //
-        protected function invalidTypeGiven($type)
+        public function dump($format='text', $indent=0)
         {
-            $this->log->push('Invalid type given: '.print_r($type, true), 3);
-            $msg = 'Invalid type specifier "%s"';
-            throw new InvalidArgumentException(sprintf($msg, $type));
+            $in = str_repeat(' ', $indent);
+            $out = '';
+
+            switch ($format)
+            {
+            case 'html':
+                $out .= $in.'<div class="dump">'."\n";
+                $out .= $in."  <h3>Sanitizor dump</h3>\n";
+                $out .= $in."  <dl>\n";
+                $out .= $in."    <dt>use_defaults_invalid</dt>\n";
+                $out .= $in.'    <dd>'.(int)($this->use_defaults_invalid)."</dd>\n";
+                $out .= $in."    <dt>use_defaults_undefined</dt>\n";
+                $out .= $in.'    <dd>'.(int)($this->use_defaults_undefined)."</dd>\n";
+                $out .= $in."    <dt>_instance is in use?</dt>\n";
+                $out .= $in.'    <dd>'.(int)(is_object(self::$_instance)).'</dd>'."\n";
+                $out .= $in."    <dt>name</dt>\n";
+                $out .= $in.'    <dd><pre>'._e(var_export($this->name, true))
+                       ."</pre></dd>\n";
+                $out .= $in."    <dt>log</dt>\n";
+                $out .= $in.'    <dd>'.$this->log->dump('html')."</dd>\n";
+                $out .= $in."  </dl>\n";
+
+                // Print rules
+                $out .= $in."  <p>Rules defined for:</p>\n".$in."<ul>\n";
+                foreach ($this->rules as $identifier => $rule)
+                {
+                    $out .= $in."    <li>"._e($identifier).": bitmask 0x".
+                         sprintf('%x', $rule[0])." with default value ".
+                         nl2br(_e(var_export($rule[1], true)));
+                    $out .= $in."</li>\n";
+                }
+                $out .= $in."  </ul>\n";
+
+                // Print filters
+                $out .= $in."  <p>Filters defined for:</p>\n".$in."<ul>\n";
+                foreach ($this->filters as $identifier => $filters)
+                {
+                    $out .= $in."    <li>"._e($identifier).": <ul>\n";
+                    foreach ($filters as $filter)
+                    {
+                        $out .= $in."      <li>Id: "._e($filter[0])
+                            ." with parameters ".
+                              nl2br(_e(var_export($filter[1], true)))
+                            ."</li>\n";
+                    }
+                    $out .= $in."    </ul></li>\n";
+                }
+                $out .= $in."  </ul>\n";
+
+                // Custom filters
+                $cfilters = count($this->custom_filters);
+                if ($cfilters > 0)
+                {
+                    $out .= $in."  <p>There are ".count($this->custom_filters).
+                         " custom filters:</p>\n".$in."  <ul>\n";
+                    foreach ($this->custom_filters as $name => $callback)
+                    {
+                        $out .= $in."    <li>"._e($name)."</li>\n";
+                    }
+                    $out .= $in."  </ul>\n";
+                } else {
+                    $out .= $in.'  <p>There are no custom filters.</p>'."\n";
+                }
+
+                $out .= $in."  <p>The following contexts are available:</p>\n";
+                foreach ($this->contexts as $context)
+                {
+                    $out .= $in."  <pre>"._e(var_export($context, true))."</pre>\n";
+                }
+                $out .= $in.'</div>'."\n";
+                break;
+
+            default:
+            case 'text':
+                $out .= $in."Sanitizor dump\n";
+                $out .= $in."==============\n\n";
+                $out .= $in.'use_defaults_invalid: '.(int)($this->use_defaults_invalid)."\n";
+                $out .= $in.'use_defaults_undefined: '.(int)($this->use_defaults_undefined)."\n";
+                $out .= $in.'_instance is in use? '.(int)(is_object(self::$_instance))."\n";
+                $out .= $in.'name: '.var_export($this->name, true)."\n";
+                $out .= $in.'log: '."\n";
+                $out .= $in.$this->log->dump('text', $indent+4);
+                $out .= "\n\n";
+
+                // Print rules
+                $out .= $in."Rules\n";
+                $out .= $in."-----\n\n";
+                foreach ($this->rules as $identifier => $rule)
+                {
+                    $out .= $in.'* '.$identifier.': bitmask 0x'
+                        .sprintf('%x', $rule[0]).' with default value '
+                        .var_export($rule[1], true)."\n";
+                }
+
+                // Print filters
+                $out .= $in."Filters\n";
+                $out .= $in."-------\n\n";
+                foreach ($this->filters as $identifier => $filters)
+                {
+                    $out .= $in.'* '.$identifier.':'."\n";
+                    foreach ($filters as $filter)
+                    {
+                        $out .= $in.'  * Id: '.$filter[0].' with parameters '.
+                             var_export($filter[1], true)."\n";
+                    }
+                }
+
+                // Custom filters
+                $cfilters = count($this->custom_filters);
+                if ($cfilters > 0)
+                {
+                    $out .= $in.'There are '.count($this->custom_filters).
+                        ' custom filters:'."\n";
+                    foreach ($this->custom_filters as $name => $callback)
+                    {
+                        $out .= $in.'* '.$name."\n";
+                    }
+                } else {
+                    $out .= $in.'There are no custom filters.'."\n";
+                }
+
+                $out .= "\n".$in."Contexts\n";
+                $out .= $in."--------\n\n";
+                foreach ($this->contexts as $id => $context)
+                {
+                    $out .= $in.'Context #'.$id.': '.var_export($context, true)."\n";
+                }
+                break;
+            }
+            return $out;
         }
 
         //
-        // An type got specified as parameter which is unknown / invalid.
-        // Eg. can be used as a hook to write to a logfile
+        // Magic method. String representation.
         //
-        // @param string type  the type specified
-        //
-        protected function invalidFilter($filter)
+        public function __toString()
         {
-            $this->log->push('Invalid filter given: '.print_r($type, true), 3);
-            return 0;
+            return $this->dump('text', 0);
         }
 
-
-
-
-
-
-
-
-
-
-
-/* TODO
         //
         // Add a context. Either store it with an identifier or by numerical
         // index (can be configured by id parameter).
         //
-        // @param array array  an associative array to search values in
+        // @param array context  an associative array to search values in
         // @param mixed id  the associated id (set randomly, but unique)
-        // @param boolean overwrite  if context exists, overwrite it?
+        // @param bool overwrite  if context exists, overwrite it?
         // @return Sanitizor  $this
         //
-        public function addContext($array, $id=NULL, $overwrite=true)
+        public function addContext($context, $id=NULL, $overwrite=true)
         {
-            if ($id !== NULL && array_key_exists($id, $this->contexts))
+            $id_given = (func_num_args() > 1); // || !is_null($id));
+            if ($id_given && array_key_exists($id, $this->contexts))
             {
                 if ($overwrite)
-                    $this->contexts[$id] = $array;
+                    $this->contexts[$id] = $context;
             } else
-                if ($id === NULL)
-                    $this->contexts[] = $array;
+                if (!$id_given)
+                    $this->contexts[] = $context;
                 else
-                    $this->contexts[$id] = $array;
+                    $this->contexts[$id] = $context;
             return $this;
         }
 
@@ -1641,9 +1908,9 @@
         // @param mixed id  the id to identify the context
         // @return Sanitizor  this
         //
-        public function removeContext($name)
+        public function removeContext($id)
         {
-            unset($this->contexts[$name]);
+            unset($this->contexts[$id]);
             return $this;
         }
 
@@ -1662,19 +1929,83 @@
         // Add a new filter.
         //
         // @param identifier mixed  the parameter
-        // @param string|int filter  a filter specifier
+        // @param string|int spec  specifies which filters to use
         // @param array|NULL parameters  parameters to be supplied whenever
         //                               the filter is called
+        // @param bool overwrite  if filter exists, overwrite it?
         // @return Sanitizor  this
         //
-        public function addFilter($identifier, $filter, $parameters=NULL)
+        public function addFilter($identifier, $spec, $parameters=NULL, $overwrite=true)
         {
-            // TODO: evaluate when two filters cannot be applied at the same time
-            $filter = $this->processFilter($filter);
-            if (func_num_args() === 2)
-                $this->filters[$identifier] = array($filter);
-            else
-                $this->filters[$identifier] = array($filter, $parameters);
+            $filters = array();
+            $num = 0;
+            $apply_filters = $this->processFilter($spec);
+            $no_parameters = (func_num_args() <= 2);
+
+            // Determine parameter per filter
+            if (!$no_parameters)
+            {
+                if (is_array($parameters) &&
+                    count($parameters) === count($apply_filters))
+                    $params = $parameters; // only value for each $filter
+                else {
+                    $params = array();
+                    foreach ($apply_filters as $filter)
+                    {
+                        $params[] = $parameters;
+                    }
+                }
+                $parameters = $params;
+            }
+
+            // for each filter given in spec
+            foreach ($apply_filters as $num => $filter)
+            {
+                if (is_array($parameters) &&
+                    count($parameters) === count($apply_filters))
+                    $parameter = $parameters[$num++];
+                else
+                    $parameter = $parameters;
+
+                if ($no_parameters)
+                    $filters[] = array($filter);
+                else
+                    $filters[] = array($filter, $parameter);
+            }
+
+            $this->filters[$identifier] = $filters;
+
+            return $this;
+        }
+
+        //
+        // Register a new custom filter to be used.
+        // Note. The callback/filter must have the following signature:
+        //           ($value, $parameters=NULL) to array(is_valid, filtered_value)
+        //
+        // @param string name   the name for the custom filter
+        // @param callback callback  a callback representing the custom filter
+        // @param bool overwrite  if filter exists, overwrite it?
+        // @return Sanitizor  this
+        //
+        public function registerFilter($name, $callback, $overwrite=true)
+        {
+            $blacklist = array('lower', 'upper', 'between', 'in', 'member',
+                'maxlength', 'trim', 'titlecase', 'camelcase');
+            if (in_array($name, $blacklist))
+            {
+                $this->log->push('Registering custom filter '.$name.' already '
+                    .'exists. Was not overwritten', Notifications::WARN);
+                return $this;
+            }
+
+            if (array_key_exists($name, $this->custom_filters))
+            {
+                if ($overwrite)
+                    $this->custom_filters[$name] = $callback;
+            } else {
+                $this->custom_filters[$name] = $callback;
+            }
 
             return $this;
         }
@@ -1685,9 +2016,10 @@
         // @param string identifier  the identifier to modify filters of
         // @return Sanitizor  this
         // 
-        public function removeFilter($identifier)
+        public function removeFilters($identifier)
         {
             unset($this->filters[$identifier]);
+            unset($this->custom_filters[$identifier]);
             return $this;
         }
 
@@ -1699,33 +2031,8 @@
         public function clearFilters()
         {
             $this->filters = array();
+            $this->custom_filters = array();
             return $this;
-        }
-
-        //
-        // Return each bit of the given bitfield separately.
-        // Example::
-        //
-        //     php > _splitBitfield(0x110)
-        //     array(0x100, 0x10)
-        //
-        // @param int bitfield  the bitfield to read
-        // @return array  array with integers
-        //
-        static protected function _splitBitfield($bitfield)
-        {
-            $split = array();
-            $base = 1;
-
-            while ($bitfield !== 0)
-            {
-                $bitfield >>= 1;
-                if ($bitfield & 1)
-                    $split[] = pow(2, $base);
-                $base++;
-            }
-
-            return $split;
         }
 
         //
@@ -1737,9 +2044,9 @@
         //                          list of types
         // @param mixed default  default value to return if type does not
         //                       match and use_defaults=true.
-        // @param boolean overwrite  shall I overwrite previously defined
-        //                           rules with same name?
-        // @return boolean  boolean indicating success or failure
+        // @param bool overwrite  shall I overwrite previously defined
+        //                        rules with same name?
+        // @return bool  boolean indicating success or failure
         //
         public function addRule($name, $types=NULL,
                                 $default=NULL, $overwrite=true)
@@ -1748,105 +2055,37 @@
                 return $this;
 
             if (!is_int($types))
-                $types = $this->processTypesStringlist($types, ',');
-            $this->rules[$name] = array($types, $default);
+                $types = $this->processTypesStringlist($types,
+                    $this->type_delimiter);
+            if (func_num_args() <= 2)
+                $this->rules[$name] = array($types);
+            else
+                $this->rules[$name] = array($types, $default);
 
             return $this;
         }
 
         //
-        // Process a list of types given as string.
+        // Remove a rule.
         //
-        // @param string flags  a string several types
-        // @param string delimiter  the delimiter used
-        // @return int  the corresponding flag constant
+        // @param mixed identifier  the identifier to remove rule for
+        // @return Sanitizor  this
         //
-        protected function processTypesStringlist($flags, $delimiter=',')
+        public function removeRule($identifier)
         {
-            $flags = explode($delimiter, $flags);
-            $flags = array_map('trim', $flags);
-            $flags_spec = 0;
-
-            foreach ($flags as $flag)
-            {
-                $flags_spec |= $this->processType($flag);
-            }
-            return $flags_spec;
+            unset($this->rules[$identifier]);
+            return $this;
         }
 
         //
-        // Process type parameter.
-        // Note. Defines a one-directional type-name association.
+        // Clear all rules.
         //
-        // @param int|string type  a type identifier
-        // @return integer|mixed  the corresponding type constant
-        //                        or return value of invalidType on error
+        // @return Sanitizor  this
         //
-        protected function processType($type)
+        public function clearRules()
         {
-            if (is_int($type))
-                return $type;
-
-            $type = strtolower($type);
-            switch ($type)
-            {
-                case 'null':
-                    return self::TYPE_NULL;
-                case 'int': case 'integer': case 'digits':
-                    return self::TYPE_INTEGER;
-                case 'hex': case 'hexdec': case 'hexadecimal':
-                    return self::TYPE_HEX;
-                case 'str': case 'string':
-                    return self::TYPE_STRING;
-                case 'float':
-                    return self::TYPE_FLOAT;
-                case 'bin':
-                    return self::TYPE_BINARY;
-                case 'bool':
-                    return self::TYPE_BOOL;
-                case 'lbool':
-                    return self::TYPE_LOOSE_BOOL;
-                case 'char':
-                    return self::TYPE_CHAR;
-                case 'alnum':
-                    return self::TYPE_ALNUM;
-                case 'alpha':
-                    return self::TYPE_ALPHA;
-                case 'print':
-                    return self::TYPE_PRINT;
-                case 'ws': case 'white': case 'whitespace':
-                    return self::TYPE_WHITESPACE;
-                default:
-                    return $this->invalidTypeGiven($type);
-            }
-        }
-
-        //
-        // Process filter parameter.
-        //
-        // @param int|string filter  a filter identifier
-        // @return integer|false  the corresponding filter constant
-        //                        or false if filter is unknown
-        //
-        protected function processFilter($filter)
-        {
-            if (is_int($filter))
-                return $filter;
-
-            $filter = strtolower($filter);
-            switch ($filter)
-            {
-                case 'lower': case 'strtolower':
-                    return self::FILTER_LOWER;
-                case 'upper': case 'strtoupper':
-                    return self::FILTER_UPPER;
-                case 'between': case 'range':
-                    return self::FILTER_BETWEEN;
-                case 'member': case 'in':
-                    return self::FILTER_MEMBER;
-                default:
-                    return $this->invalidFilter($filter);
-            }
+            $this->rules = array();
+            return $this;
         }
 
         //
@@ -1857,7 +2096,7 @@
         //
         protected function handleNull($value)
         {
-            if ($value === NULL || strtolower($value) === 'null')
+            if (is_null($value) || strtolower($value) === 'null')
                 return array(true, NULL);
             else
                 return array(false, $this->default_null);
@@ -1871,18 +2110,37 @@
         //
         protected function handleInteger($value)
         {
+            $regex = '/^((0x([[:xdigit:]]+))|(0b([0-1]+))|([[:digit:]]+))$/';
+
             if (is_int($value))
                 return array(true, $value);
-            elseif (function_exists('ctype_digit'))
-                $check = ctype_digit($value);
-            elseif (preg_match('/^[[:digit:]]+$/', $value))
-                $check = true;
-            else
+            elseif (is_string($value))
+            {
+                $matches = array();
+                preg_match($regex, $value, $matches);
+                if (count($matches) > 0)
+                    $check = true;
+                else
+                    $check = false;
+            } else
                 $check = false;
 
             if ($check)
-                return array(true, (int)$value);
-            else
+            {
+                if (strlen($matches[1]) > 0)
+                {
+                    if (!isEmpty($matches[2]))
+                        $val = (int)base_convert($matches[3], 16, 10);
+                    else if (!isEmpty($matches[4]))
+                        $val = (int)base_convert($matches[5], 2, 10);
+                    else if (!isEmpty($matches[6]))
+                        $val = (int)$matches[6];
+                    else
+                        return array(false, $this->default_integer);
+                    return array(true, $val);
+                } else
+                    return array(true, (int)$value);
+            } else
                 return array(false, $this->default_integer);
         }
 
@@ -1894,8 +2152,11 @@
         //
         protected function handleHex($value)
         {
-            if (preg_match('/^[[:xdigit:]]+$/', $value))
-                return array(true, hexdec($value));
+            $matches = array();
+            if (is_int($value))
+                return array(true, $value);
+            if (preg_match('/^(0x)?([[:xdigit:]]+)$/', $value, $matches))
+                return array(true, hexdec($matches[2]));
             else
                 return array(false, $this->default_hex);
         }
@@ -1933,10 +2194,17 @@
         //
         protected function handleBinary($value)
         {
-            $value = trim($value);
+            if (is_int($value))
+                return array(true, $value);
+            else if (is_array($value) || is_object($value))
+                return array(false, $this->default_binary);
 
-            if (in_array(array('0', '1'), $value))
-                return array(true, $value === '1');
+            $regex = '/^0*([01]+)$/';
+            $matches = array();
+            preg_match($regex, trim((string)$value), $matches);
+
+            if (count($matches) > 0)
+                return array(true, base_convert($matches[1], 2, 10));
             else
                 return array(false, $this->default_binary);
         }
@@ -1951,11 +2219,13 @@
         {
             if (is_bool($value))
                 return array(true, $value);
+            if (is_array($value) || is_object($value))
+                return array(false, $this->default_bool);
 
-            $value = trim($value);
+            $value = trim((string)$value);
 
-            if (in_array(array('0', '1', 'false', 'true'), $value))
-                return array(true, in_array(array('1', 'true'), $value));
+            if (in_array($value, array('0', '1', 'false', 'true')))
+                return array(true, in_array($value, array('1', 'true')));
             else
                 return array(false, $this->default_bool);
         }
@@ -2059,9 +2329,9 @@
         // @param mixed value  a value to sanitize
         // @return array  array(is_valid, sanitized)
         //
-        protected function handleWhite($value)
+        protected function handleWhitespace($value)
         {
-            if (preg_match('/^[[:space:]]+$/', $value))
+            if (preg_match('/^[[:space:]]+$/', $value) === 1)
                 return array(true, $value);
             else
                 return array(false, $this->default_whitespace);
@@ -2138,8 +2408,8 @@
         {
             if (!is_string($value))
                 return array(false, $value);
-            if (strlen($value) > $parameters[0])
-                return array(true, substr($value, 0, $parameters[0]));
+            if (!is_null($parameters) && strlen($value) > $parameters)
+                return array(true, substr($value, 0, $parameters));
             return array(true, $value);
         }
 
@@ -2186,15 +2456,265 @@
         }
 
         //
+        // Get filters specification and return array of filter names.
+        //
+        // @param array|bitfield|string spec  a filter specification
+        // @return array  an array of filter names.
+        //
+        public function processFilter($spec)
+        {
+            if (is_array($spec))
+            {
+                $valid = true;
+                foreach ($spec as $filter_name)
+                {
+                    if (!is_string($filter_name))
+                    {
+                        $msg = 'Filter name is not a string: %s';
+                        $this->log->push(sprintf($msg,
+                                var_export($filter_name, true)),
+                                Notifications::ERROR);
+                        $valid = false;
+                    }
+                }
+                if ($valid)
+                    return $spec;
+                else
+                    return false;
+            }
+
+            else if (is_int($spec))
+            {
+                $filters = array();
+                $class = __CLASS__;
+                $split = $class::_splitBitfield($spec);
+                foreach ($split as $bitmask)
+                {
+                    $filters[] = $this->constantToFilterName($bitmask);
+                }
+
+                return $filters;
+            }
+
+            else if (is_string($spec))
+            {
+                return explode($this->filter_delimiter, $spec);
+            }
+        }
+
+        //
+        // Take some filter constant and return its corresponding name.
+        //
+        // @param int bitvalue  an integer with one bit set
+        // @return string  the name of the corresponding filter
+        //
+        protected function constantToFilterName($bitvalue)
+        {
+            $class = __CLASS__;
+            switch ($bitvalue)
+            {
+            case $class::FILTER_LOWER:
+                return 'lower';
+            case $class::FILTER_UPPER:
+                return 'upper';
+            case $class::FILTER_BETWEEN:
+                return 'between';
+            case $class::FILTER_MEMBER:
+                return 'member';
+            case $class::FILTER_MAXLENGTH:
+                return 'maxlength';
+            case $class::FILTER_TRIM:
+                return 'trim';
+            case $class::FILTER_TITLECASE:
+                return 'titlecase';
+            case $class::FILTER_CAMELCASE:
+                return 'camelcase';
+            default:
+                $this->log->push(sprintf('Lookup unknown filter constant %x',
+                    $bitvalue), Notifications::WARN);
+                return '';
+            }
+        }
+
+        //
+        // Apply filters to the `parameter` using the filters for `identifier`.
+        //
+        // @param mixed parameter  the parameter evaluated so far
+        // @param mixed identifier  the identifier to find filters to apply
+        // @return array  an array(validity, new (filtered) parameter)
+        //
+        protected function applyFilters($parameter, $identifier)
+        {
+            if (!array_key_exists($identifier, $this->filters) &&
+                !array_key_exists($identifier, $this->custom_filters))
+                return array(true, $parameter);
+
+            $all_valid = true;
+            if (array_key_exists($identifier, $this->filters))
+            {
+                foreach ($this->filters[$identifier] as $f)
+                {
+                    $filter_name = $f[0];
+                    $clbk = $this->filterNameToCallback($filter_name);
+                    if (count($f) >= 2)
+                        list($valid, $parameter)
+                            = call_user_func($clbk, $parameter, $f[1]);
+                    else
+                        list($valid, $parameter)
+                            = call_user_func($clbk, $parameter);
+
+                    if (!$valid)
+                    {
+                        $all_valid = false;
+                        $this->log->push('Filter '.$filter_name.' returned '
+                            .'false validity value for value '
+                            .var_export($parameter, true), Notifications::WARN);
+                    }
+                }
+            }
+            return array($all_valid, $parameter);
+        }
+
+        //
+        // Take some filter name and return a corresponding callback.
+        //
+        // @param string filter_name  a filter name
+        // @return callback|NULL  a callback or NULL on error
+        //
+        protected function filterNameToCallback($filter_name)
+        {
+            $filter_name = strtolower($filter_name);
+            $filters = array(
+                'lower'         => 'filterLower',
+                'upper'         => 'filterUpper',
+                'between'       => 'filterBetween',
+                'in'            => 'filterMember',
+                'member'        => 'filterMember',
+                'maxlength'     => 'filterMaxLength',
+                'trim'          => 'filterTrim',
+                'titlecase'     => 'filterTitleCase',
+                'camelcase'     => 'filterCamelCase'
+            );
+
+            if (in_array($filter_name, array_keys($filters)))
+                return array($this, $filters[$filter_name]);
+
+            if (array_key_exists($filter_name, $this->custom_filters))
+                return $this->custom_filters[$filter_name];
+
+            if (!is_callable($filter_name))
+                $this->log->push('Filter '.$filter_name.' does not seem to '
+                    .'be callable', Notifications::WARN);
+
+            return $filter_name;
+        }
+
+        //
+        // Process a list of types given as string.
+        //
+        // @param string flags  a string defining one or more types
+        // @param string delimiter  the delimiter separating types
+        // @return int  the corresponding flag constant
+        //
+        protected function processTypesStringlist($flags, $delimiter=',')
+        {
+            $flags = explode($delimiter, $flags);
+            $flags = array_map('trim', $flags);
+            $flags_spec = 0;
+
+            foreach ($flags as $flag)
+            {
+                $flags_spec |= $this->processType($flag);
+            }
+            return $flags_spec;
+        }
+
+        //
+        // Return each bit of the given bitfield separately.
+        // Example::
+        //
+        //     php > _splitBitfield(0x110)
+        //     array(0x100, 0x10)
+        //
+        // @param int bitfield  the bitfield to read
+        // @return array  array with integers
+        //
+        static protected function _splitBitfield($bitfield)
+        {
+            $split = array();
+            $base = 1;
+
+            while ($bitfield !== 0)
+            {
+                $bitfield >>= 1;
+                if ($bitfield & 1)
+                    $split[] = pow(2, $base);
+                $base++;
+            }
+
+            return $split;
+        }
+
+        //
+        // Process type parameter.
+        // Note. Defines a one-directional type-name association.
+        //
+        // @param int|string type  a type identifier
+        // @return int|mixed  the corresponding type constant
+        //                    or return value of invalidType on error
+        //
+        protected function processType($type)
+        {
+            if (is_int($type))
+                return $type;
+
+            $type = strtolower($type);
+            switch ($type)
+            {
+                case 'null':
+                    return self::TYPE_NULL;
+                case 'int': case 'integer': case 'digits':
+                    return self::TYPE_INTEGER;
+                case 'hex': case 'hexdec': case 'hexadecimal':
+                    return self::TYPE_HEX;
+                case 'str': case 'string':
+                    return self::TYPE_STRING;
+                case 'float':
+                    return self::TYPE_FLOAT;
+                case 'bin':
+                    return self::TYPE_BINARY;
+                case 'bool':
+                    return self::TYPE_BOOL;
+                case 'lbool':
+                    return self::TYPE_LOOSE_BOOL;
+                case 'char':
+                    return self::TYPE_CHAR;
+                case 'alnum':
+                    return self::TYPE_ALNUM;
+                case 'alpha':
+                    return self::TYPE_ALPHA;
+                case 'print':
+                    return self::TYPE_PRINT;
+                case 'ws': case 'white': case 'whitespace':
+                    return self::TYPE_WHITESPACE;
+                default:
+                    return $this->invalidTypeGiven($type);
+            }
+        }
+
+        //
         // Sanitize value according to given types bitmask.
         //
-        // @param mixed value  the value given by context[searched]
-        // @param int types  a bitmask representing valid types
+        // @param mixed parameter  the value given by context[identifier]
+        // @param mixed identifier  the identifier to work with
         // @return array  an array(is_valid, sanitized_value)
         //                where is_valid says whether or not is in one of types
         //
-        protected function sanitizeTypes($value, $types)
+        protected function sanitizeTypes($parameter, $identifier)
         {
+            $rule = $this->rules[$identifier];
+            $types = $rule[0];
+
             $assoc = array(
                 self::TYPE_NULL         => 'handleNull',
                 self::TYPE_INTEGER      => 'handleInteger',
@@ -2216,187 +2736,240 @@
             {
                 if (($types & $bit) !== 0)
                 {
-                    $validate = $this->{$method}($value);
+                    $validate = $this->{$method}($parameter);
                     if ($validate[0])
                         break;
                     // else search for better choices
                 }
             }
-            if ($validate !== NULL)
+            if (!is_null($validate))
                 return $validate;
             else
                 // no type is specified. Then assume it is correct anyway.
-                return array(true, $value);
+                return array(true, $parameter);
         }
 
-        //
-        // Apply all filters given by $filters to $value.
-        //
-        // @param mixed value  the value given by context[searched]
-        // @param array filters  list of arrays (filter, params) to be applied
-        // @return array  an array(is_valid, filtered_value)
-        //                where is_valid says whether or not is in one of types
-        //
-        protected function applyFilters($value, $filters=NULL)
+        protected function handleIdentifierExists($parameter, $identifier)
         {
-            if (!is_array($filters) || empty($filters))
-                return array(true, $value);
+            // does a rule for this identifier exist?
+            //   if yes then check validity of value
+            //     if yes then apply filters and return filtered (validity, value)
+            //     if no then use_defaults_invalid?
+            //       if yes then default value for this rule is given?
+            //         if yes then return (false, rule default value)
+            //         if no then return (false, sanitized value)
+            //       if no then return (false, sanitized value)
+            //   if no then (filtered_validity, filtered context[identifier])
 
-            $assoc = array(
-                self::FILTER_LOWER => 'filterLower',
-                self::FILTER_UPPER => 'filterUpper',
-                self::FILTER_BETWEEN => 'filterBetween',
-                self::FILTER_MEMBER => 'filterMember',
-                self::FILTER_MAXLENGTH => 'filterMaxLength',
-                self::FILTER_TRIM => 'filterTrim',
-                self::FILTER_TITLECASE => 'filterTitleCase',
-                self::FILTER_CAMELCASE => 'filterCamelCase'
-            );
-            foreach ($filters as $filter)
+            $rule_exists = array_key_exists($identifier, $this->rules);
+
+            if (!$rule_exists)
             {
-                foreach ($assoc as $bit => $method)
+                list($validity, $parameter)
+                    = $this->applyFilters($parameter, $identifier);
+
+                // postprocessing hook
+                $res = $this->postProcessingHook($identifier, $parameter);
+                if (!is_null($res))
                 {
-                    if (($filter[0] & $bit) !== 0)
+                    list($valid, $param) = $res;
+                    if (!is_null($valid))
+                        return array($valid, $param);
+                }
+
+                return array($validity, $parameter);
+            }
+
+            list($validity, $sanitized_value)
+                = $this->sanitizeTypes($parameter, $identifier);
+
+            if ($validity)
+            {
+                $parameter = $sanitized_value;
+                list($validity, $parameter)
+                    = $this->applyFilters($parameter, $identifier);
+
+                // postprocessing hook
+                $res = $this->postProcessingHook($identifier, $parameter);
+                if (!is_null($res))
+                {
+                    list($valid, $param) = $res;
+                    if (!is_null($valid))
+                        return array($valid, $param);
+                }
+
+                return array($validity, $parameter);
+
+            } else {
+
+                // invalid value hook
+                $res = $this->invalidValueHook($identifier, $parameter);
+                if (!is_null($res))
+                {
+                    list($identifier, $validity, $parameter) = $res;
+                    if (!is_null($validity))
+                        return array($validity, $parameter);
+                }
+
+                if ($this->use_defaults_invalid)
+                {
+                    if (array_key_exists($identifier, $this->rules) &&
+                        array_key_exists(1, $this->rules[$identifier]))
                     {
-                        $validate = $this->{$method}($value, $filter[1]);
-                        if ($validate[0] === false)
-                            break;
+                        return array(false, $this->rules[$identifier][1]);
+                    } else {
+                        // no default value hook
+                        $res = $this->noDefaultValueHook($identifier);
+                        if (!is_null($res))
+                        {
+                            list($validity, $parameter) = $res;
+                            if (!is_null($validity))
+                                return array($validity, $parameter);
+                        }
+
+                        // throw new UndefinedValueException('Default value was not set');
+                        return array(false, $sanitized_value);
                     }
+
+                } else {
+                    return array(false, $sanitized_value);
                 }
             }
-            return $validate;
         }
 
-        //
-        // Parse a parameter value.
-        //
-        // @param mixed value  the value given by context[searched]
-        // @param int types  a bitmask representing valid types
-        // @param array filters  list of arrays (filter, params) to be applied
-        // @return array  an array(is_valid, sanitized_and_filtered_value)
-        //                where is_valid says whether or not is in one of types
-        //
-        protected function parse($value, $types=0, $filters=NULL)
+        protected function handleIdentifierDoesNotExist($identifier)
         {
-            // apply type constraints
-            $validate = $this->sanitizeTypes($value, $types);
+            // use_defaults_undefined?
+            //   if no then return (false, sanitized value)
+            //   if yes then default value for this rule is given?
+            //     if no then return (false, NULL)
+            //     if yes then return (false, rule default value)
 
-            // apply filters (only if valid value is available)
-            if ($validate[0] === true)
-                $validate = $this->applyFilters($validate[1], $filters);
+            list($validity, $sanitized_value) = $this->sanitizeTypes(NULL, $identifier);
+            $validity = false;  // Is always false.
 
-            return $validate;
+            if ($this->use_defaults_undefined)
+            {
+                if (array_key_exists(1, $this->rules[$identifier]))
+                {
+                    return array(true, $this->rules[$identifier][1]);
+
+                } else {
+                    $res = $this->noDefaultValueHook($identifier);
+                    if (!is_null($res))
+                    {
+                        list($validity, $parameter) = $res;
+                        if (!is_null($validity))
+                            return array($validity, $parameter);
+                    }
+
+                    // throw new UndefinedValueException('Default value was not set');
+                    return array(false, $sanitized_value);
+                }
+            } else {
+                return array(false, $sanitized_value);
+            }
         }
 
-        //
-        // Find parameter in contexts and parse it
-        //
-        // @param string name  the parameter to search for
-        // @return mixed  parameter content, default value, whatever, ...
-        //
-        public function getParameter($name)
+        protected function handleRequest($identifier)
         {
-            $some_value = NULL;
+            // Is identifier defined in any context?
+            //   if yes then
+            //     CALL handleIdentifierExists
+            //   if no then does a rule for this identifier exist?
+            //     if no then return (false, NULL)
+            //     if yes then 
+            //       CALL handleIdentifierDoesExist
+
             foreach ($this->contexts as $context)
             {
-                if ($context && array_key_exists($name, $context))
+                if ($context && array_key_exists($identifier, $context))
                 {
-                    if (array_key_exists($name, $this->rules))
+                    // is defined in any context
+                    // preprocessing hook
+                    $res = $this->preProcessingHook($identifier,
+                        $context[$identifier]);
+                    if (!is_null($res))
                     {
-                        if (array_key_exists($name, $this->filters))
-                            $result = $this->parse($context[$name],
-                                $this->rules[$name][0], $this->filters[$name]);
-                        else
-                            $result = $this->parse($context[$name],
-                                $this->rules[$name][0]);
-
-                        if (!$result[0])
-                            if ($this->use_defaults)
-                                if (isset($this->rules[$name][1]))
-                                    return $this->rules[$name][1];
-                                else
-                                    return $this->undefined_default;
-                            else
-                                return self::DEFAULT_VALUE;
-                        else
-                            return $result[1];
-                    } elseif ($some_value === NULL) {
-                        // I found some value but no associated rules
-                        $some_value = $context[$name];
+                        list($identifier, $validity, $parameter) = $res;
+                        if (!is_null($validity))
+                            return array($validity, $parameter);
                     }
+
+                    return $this->handleIdentifierExists
+                        ($context[$identifier], $identifier);
                 }
             }
-            if ($some_value === NULL)
+
+            // undefined value hook
+            $res = $this->undefinedValueHook($identifier);
+            if (!is_null($res))
             {
-                $exists = true;
-                if (!isset($this->undefined_value))
-                {
-                    $attrs  = array_keys(get_class_vars(get_class($this)));
-                    $exists = in_array('undefined_value', $attrs);
-                }
-                if ($exists)
-                    return $this->undefined_value;
-                else
-                    return $this->{$name};
-            } else
-                // assume defined value is okay but no rules are given
-                return $some_value;
+                list($identifier, $validity, $parameter) = $res;
+                if (!is_null($validity))
+                    return array($validity, $parameter);
+            }
+
+            $rule_exists = array_key_exists($identifier, $this->rules);
+            if ($rule_exists)
+            {
+                return $this->handleIdentifierDoesNotExist($identifier);
+            } else {
+                return array(false, NULL);
+            }
         }
 
         //
-        // Get name from contexts and return validity of a variable.
+        // Find sanitized value (= parameter) in contexts and parse it
         //
-        // @param string name  the parameter to search for
-        // @return boolean  if found, return validity of input else false
+        // @param mixed identifier  the identifier to look for in contexts
+        // @return mixed  parameter content, default value, default_{type} or NULL
         //
-        public function getValidity($name)
+        public function getParameter($identifier)
         {
-            foreach ($this->contexts as $context)
-            {
-                if ($context && array_key_exists($name, $context))
-                {
-                    if (array_key_exists($name, $this->rules))
-                    {
-                        if (array_key_exists($name, $this->filters))
-                            $result = $this->parse($context[$name],
-                                $this->rules[$name][0], $this->filters[$name]);
-                        else
-                            $result = $this->parse($context[$name],
-                                $this->rules[$name][0]);
-
-                        return $result[0];
-                    }
-                }
-            }
-            return false;
+            $res = $this->handleRequest($identifier);
+            return $res[1];
         }
 
         //
-        // Clear all rules.
+        // Is the value returned for this identifier
+        // some value provided by the contexts?
         //
-        // @return Sanitizor  this
+        // @param mixed identifier  the parameter to search for
+        // @return bool  if found, return validity of input else false
         //
-        public function clearRules()
+        public function getValidity($identifier)
         {
-            $this->rules = array();
-            return $this;
+            $res = $this->handleRequest($identifier);
+            return $res[0];
+        }
+
+        //
+        // Get an array([bool] is value from context?, [mixed] sanitized value)
+        //
+        // @param mixed identifier  the parameter to search for
+        // @return array  an array(validity, parameter)
+        //
+        public function get($identifier)
+        {
+            return $this->handleRequest($identifier);
         }
 
         //
         // Magic method.
         //
-        // @param string name  the parameter to search for or method name
+        // @param mixed name  method name or the identifier to search for
+        //                    to test only validity prefix $name with 'v_'
         // @return mixed  parameter content, default value, whatever, ...
         //
         public function __get($name)
         {
-            if (substr($name, 0, 2) === 's_')
-                return $this->getParameter(substr($name, 2));
-            elseif (substr($name, 0, 2) === 'v_')
+            if (property_exists($this, $name))
+                return $this->{$name};
+            else if (substr($name, 0, 2) === 'v_')
                 return $this->getValidity(substr($name, 2));
             else
-                return $this->{$name};
+                return $this->getParameter($name);
         }
-*/
     }
 ?>
