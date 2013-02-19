@@ -568,7 +568,7 @@
         //
         public function intersect($stack)
         {
-            assert(is_array($stack) || is_a($stack, __CLASS__));
+            assert(is_array($stack) || is_a($stack, 'Stack'));
 
             $new = $this->create();
             $new->clear();
@@ -1563,8 +1563,7 @@
         {
             if (!isset(self::$_instance))
             {
-                $class = __CLASS__;
-                self::$_instance = new $class($options);
+                self::$_instance = new Sanitizor($options);
             }
             return self::$_instance;
         }
@@ -2486,8 +2485,7 @@
             else if (is_int($spec))
             {
                 $filters = array();
-                $class = __CLASS__;
-                $split = $class::_splitBitfield($spec);
+                $split = Sanitizor::_splitBitfield($spec);
                 foreach ($split as $bitmask)
                 {
                     $filters[] = $this->constantToFilterName($bitmask);
@@ -2510,24 +2508,23 @@
         //
         protected function constantToFilterName($bitvalue)
         {
-            $class = __CLASS__;
             switch ($bitvalue)
             {
-            case $class::FILTER_LOWER:
+            case Sanitizor::FILTER_LOWER:
                 return 'lower';
-            case $class::FILTER_UPPER:
+            case Sanitizor::FILTER_UPPER:
                 return 'upper';
-            case $class::FILTER_BETWEEN:
+            case Sanitizor::FILTER_BETWEEN:
                 return 'between';
-            case $class::FILTER_MEMBER:
+            case Sanitizor::FILTER_MEMBER:
                 return 'member';
-            case $class::FILTER_MAXLENGTH:
+            case Sanitizor::FILTER_MAXLENGTH:
                 return 'maxlength';
-            case $class::FILTER_TRIM:
+            case Sanitizor::FILTER_TRIM:
                 return 'trim';
-            case $class::FILTER_TITLECASE:
+            case Sanitizor::FILTER_TITLECASE:
                 return 'titlecase';
-            case $class::FILTER_CAMELCASE:
+            case Sanitizor::FILTER_CAMELCASE:
                 return 'camelcase';
             default:
                 $this->log->push(sprintf('Lookup unknown filter constant %x',
