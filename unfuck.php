@@ -1488,6 +1488,22 @@
         // Notifications instance
         public $log;
 
+        public $type_to_method = array(
+            self::TYPE_NULL         => 'handleNull',
+            self::TYPE_INTEGER      => 'handleInteger',
+            self::TYPE_HEX          => 'handleHex',
+            self::TYPE_STRING       => 'handleString',
+            self::TYPE_FLOAT        => 'handleFloat',
+            self::TYPE_BINARY       => 'handleBinary',
+            self::TYPE_BOOL         => 'handleBool',
+            self::TYPE_LOOSE_BOOL   => 'handleLBool',
+            self::TYPE_CHAR         => 'handleChar',
+            self::TYPE_ALNUM        => 'handleAlnum',
+            self::TYPE_ALPHA        => 'handleAlpha',
+            self::TYPE_PRINT        => 'handlePrint',
+            self::TYPE_WHITESPACE   => 'handleWhitespace'
+        );
+
         //
         // Constructor.
         //
@@ -2712,24 +2728,8 @@
             $rule = $this->rules[$identifier];
             $types = $rule[0];
 
-            $assoc = array(
-                self::TYPE_NULL         => 'handleNull',
-                self::TYPE_INTEGER      => 'handleInteger',
-                self::TYPE_HEX          => 'handleHex',
-                self::TYPE_STRING       => 'handleString',
-                self::TYPE_FLOAT        => 'handleFloat',
-                self::TYPE_BINARY       => 'handleBinary',
-                self::TYPE_BOOL         => 'handleBool',
-                self::TYPE_LOOSE_BOOL   => 'handleLBool',
-                self::TYPE_CHAR         => 'handleChar',
-                self::TYPE_ALNUM        => 'handleAlnum',
-                self::TYPE_ALPHA        => 'handleAlpha',
-                self::TYPE_PRINT        => 'handlePrint',
-                self::TYPE_WHITESPACE   => 'handleWhitespace'
-            );
-
             $validate = NULL;
-            foreach ($assoc as $bit => $method)
+            foreach ($this->type_to_method as $bit => $method)
             {
                 if (($types & $bit) !== 0)
                 {
