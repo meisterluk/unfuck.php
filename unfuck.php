@@ -2184,6 +2184,8 @@
         //
         protected function handleString($value)
         {
+            if (is_array($value))
+                return array(false, implode('', $value));
             return array(true, (string)$value);
         }
 
